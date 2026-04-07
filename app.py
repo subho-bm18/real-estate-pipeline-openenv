@@ -1058,16 +1058,25 @@ def live_dashboard() -> HTMLResponse:
     </div>
     <div class="grid">
       <section>
-        <h2>Manual Lead Entry</h2>
-        <div class="voice-panel">
-          <div><strong>Voice Assistant</strong></div>
-          <div class="sub">Use your microphone to capture a lead verbally or play back the latest simulated call flow. Best supported in Chromium-based browsers.</div>
-          <div class="form-actions" style="margin-top: 12px; margin-bottom: 0;">
-            <button id="startVoiceIntakeButton" class="voice">Start Voice Intake</button>
-            <button id="dictateInquiryButton" class="voice">Dictate Inquiry</button>
-            <button id="playLatestCallButton" class="secondary">Play Latest Call</button>
+        <h2>Manual Lead Entry & Voice Intake</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+          <div class="voice-panel">
+            <div><strong>Voice Assistant</strong></div>
+            <div class="sub">Use your microphone to capture a lead verbally. Best supported in Chromium-based browsers.</div>
+            <div class="form-actions" style="margin-top: 12px; margin-bottom: 0;">
+              <button id="startVoiceIntakeButton" class="voice">Start Voice Intake</button>
+              <button id="dictateInquiryButton" class="voice">Dictate Inquiry</button>
+              <button id="playLatestCallButton" class="secondary">Play Latest Call</button>
+            </div>
+            <div class="voice-log" id="voiceLog">Voice assistant idle.</div>
           </div>
-          <div class="voice-log" id="voiceLog">Voice assistant idle.</div>
+          <div style="border: 1px solid var(--border); border-radius: 12px; padding: 16px; background: var(--panel);">
+            <div style="margin-bottom: 8px;"><strong>Test Input Editor</strong> (Fallback when voice fails)</div>
+            <div class="sub" style="margin-bottom: 12px; font-size: 0.85rem;">Paste or type inquiry text directly (for testing when voice recognition unavailable)</div>
+            <textarea id="testInquiryInput" placeholder="E.g., Looking for a 3BHK apartment in Whitefield. Budget is 1 crore and need to move in 60 days." style="width: 100%; height: 120px; padding: 8px; border: 1px solid var(--border); border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
+            <button id="submitTestInquiryButton" style="margin-top: 8px; padding: 8px 16px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">Use Test Input</button>
+            <div id="testInputLog" style="margin-top: 8px; font-size: 0.8rem; color: var(--muted); line-height: 1.4;"></div>
+          </div>
         </div>
         <div class="form-grid">
           <label>
@@ -1188,6 +1197,9 @@ def live_dashboard() -> HTMLResponse:
     const dictateInquiryButton = document.getElementById("dictateInquiryButton");
     const playLatestCallButton = document.getElementById("playLatestCallButton");
     const voiceLog = document.getElementById("voiceLog");
+    const submitTestInquiryButton = document.getElementById("submitTestInquiryButton");
+    const testInquiryInput = document.getElementById("testInquiryInput");
+    const testInputLog = document.getElementById("testInputLog");
     const leads = new Map();
     const cabVoiceState = new Map();
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1233,7 +1245,77 @@ def live_dashboard() -> HTMLResponse:
     function addEventRow(event) {
       const row = document.createElement("div");
       row.className = "event-row";
-      row.innerHTML = `<div class="event-tag">${event.event}</div><pre>${JSON.stringify(event, null, 2)}</pre>`;
+      
+      // Map deal stages from event types
+      const stageEmojis = {
+        'send_proposal': '📧',
+        'customer_follow_up': '☎️',
+        'send_negotiation_offer': '🤝',
+        'send_payment_reminder': '💳',
+        'process_booking_payment': '💰',
+        'finalize_deal': '🎉',
+        'lead_received': '📌',
+        'lead_step': '🔄'
+      };
+      
+      const stageNames = {
+        'send_proposal': 'Proposal',
+        'customer_follow_up': 'Follow-up',
+        'send_negotiation_offer': 'Negotiation',
+        'send_payment_reminder': 'Payment Reminder',
+        'process_booking_payment': 'Payment Received',
+        'finalize_deal': 'Deal Closed',
+        'lead_received': 'Lead Captured',
+        'lead_step': 'Pipeline Step'
+      };
+      
+      const emoji = stageEmojis[event.event] || '📝';
+      const stageName = stageNames[event.event] || event.event;
+      const timestamp = new Date().toLocaleTimeString();
+      const leadId = event.lead_id || event.payload?.lead_id || 'Unknown';
+      const customerName = event.payload?.customer_name || 'N/A';
+      
+      // Extract key details based on event type
+      let details = '';
+      if (event.payload) {
+        if (event.payload.booking_amount) {
+          details += `Amount: ₹${(event.payload.booking_amount / 100000).toFixed(1)}L`;
+        } else if (event.payload.inquiry) {
+          details += `Inquiry: ${event.payload.inquiry.substring(0, 60)}...`;
+        }
+        if (event.payload.action_type) {
+          details += ` | Action: ${event.payload.action_type}`;
+        }
+        if (event.payload.negotiation_round !== undefined) {
+          details += ` | Round: ${event.payload.negotiation_round}`;
+        }
+        if (event.payload.follow_up_count !== undefined) {
+          details += ` | Attempt: ${event.payload.follow_up_count}`;
+        }
+      }
+      
+      // Create formatted event card (collapsible)
+      row.innerHTML = `
+        <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <span style="font-size: 1.2em;">${emoji}</span>
+              <strong style="color: #fff;">${stageName}</strong>
+              <span style="font-size: 0.8em; color: rgba(255,255,255,0.6);">${timestamp}</span>
+            </div>
+            <div style="font-size: 0.85em; color: rgba(255,255,255,0.8); margin-left: 28px;">
+              <strong>Lead:</strong> ${customerName} (${leadId})
+              ${details ? `<br><strong>Details:</strong> ${details}` : ''}
+            </div>
+          </div>
+          <button style="padding: 4px 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: #fff; cursor: pointer; font-size: 0.8em;" onclick="this.parentElement.parentElement.classList.toggle('expanded');">Details</button>
+        </div>
+        <details style="margin-top: 8px; margin-left: 28px; font-size: 0.85em; color: rgba(255,255,255,0.7);">
+          <summary style="cursor: pointer; color: rgba(255,255,255,0.6);">Raw Event Data</summary>
+          <pre style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; overflow-x: auto; margin-top: 8px;">${JSON.stringify(event, null, 2)}</pre>
+        </details>
+      `;
+      
       eventList.prepend(row);
     }
 
@@ -1852,7 +1934,60 @@ def live_dashboard() -> HTMLResponse:
       speak(script);
     }
 
-    async function consumeStream(response) {
+    async function submitTestInquiry() {
+      const testText = testInquiryInput.value.trim();
+      if (!testText) {
+        testInputLog.textContent = "❌ Please enter an inquiry text.";
+        return;
+      }
+      try {
+        testInputLog.textContent = "⏳ Processing test inquiry...";
+        document.getElementById("inquiry").value = cleanSpokenText(testText);
+        document.getElementById("leadId").value = `test_${Date.now()}`;
+        
+        // Try to infer some basic fields from text patterns
+        const textLower = testText.toLowerCase();
+        if (textLower.includes("commercial") || textLower.includes("office") || textLower.includes("space")) {
+          segmentSelect.value = "commercial";
+          syncSegmentFields();
+        } else {
+          segmentSelect.value = "residential";
+          syncSegmentFields();
+        }
+        
+        // Try to parse budget if mentioned (look for numbers followed by crore/lakh/lac)
+        const budgetMatch = testText.match(/(\\d+)\\s*(crore|lakh|lac)?/i);
+        if (budgetMatch) {
+          let amount = parseInt(budgetMatch[1]);
+          if (budgetMatch[2]) {
+            const unit = budgetMatch[2].toLowerCase();
+            if (unit === "crore") amount = amount * 10000000;
+            else if (unit === "lakh" || unit === "lac") amount = amount * 100000;
+          }
+          document.getElementById("budget").value = amount;
+        }
+        
+        // Try to parse timeline from text
+        const daysMatch = testText.match(/(\\d+)\\s*(?:day|week|month)/i);
+        if (daysMatch) {
+          let days = parseInt(daysMatch[1]);
+          const unit = daysMatch[0].toLowerCase();
+          if (unit.includes("week")) days = days * 7;
+          else if (unit.includes("month")) days = days * 30;
+          document.getElementById("timelineDays").value = Math.max(1, Math.min(365, days));
+        }
+        
+        applyVoiceIntelligence();
+        testInputLog.textContent = "✅ Test inquiry parsed successfully. Click submit to process the lead.";
+        setTimeout(() => {
+          testInputLog.textContent = "";
+          testInquiryInput.value = "";
+        }, 2000);
+        await runManualLead();
+      } catch (error) {
+        testInputLog.textContent = `❌ Error: ${error.message}`;
+      }
+    }
       startButton.disabled = true;
       submitManualButton.disabled = true;
       const reader = response.body.getReader();
@@ -2362,6 +2497,7 @@ def live_dashboard() -> HTMLResponse:
     startVoiceIntakeButton.addEventListener("click", startVoiceIntake);
     dictateInquiryButton.addEventListener("click", dictateInquiry);
     playLatestCallButton.addEventListener("click", playLatestCall);
+    submitTestInquiryButton.addEventListener("click", submitTestInquiry);
     segmentFilter.addEventListener("change", fetchAndRenderConversionChart);
     resetMetricsBtn.addEventListener("click", resetConversionMetrics);
     marketLocationFilter.addEventListener("change", fetchAndRenderMarketRates);
