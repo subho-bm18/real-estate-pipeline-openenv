@@ -79,14 +79,129 @@ DEFAULT_STREAM_LEADS: list[InboundLead] = [
     InboundLead(
         lead_id="live_res_002",
         customer_name="Neha Singh",
-        inquiry="I am looking for a 3-bedroom home on the west side. Please share options.",
+        inquiry="I am looking for a 3BHK apartment on the west side. My budget is around 1.1 crore and I need to move in within 60 days.",
         segment="residential",
         profession="marketing consultant",
         employment_type="business",
         customer_location="Banashankari",
-        location="West Side",
-        property_type="3-bedroom home",
-        missing_fields=["budget", "timeline_days", "financing_status", "total_experience_years"],
+        budget=11000000,
+        location="Sarjapur",
+        timeline_days=60,
+        property_type="3BHK apartment",
+    ),
+    InboundLead(
+        lead_id="live_res_003",
+        customer_name="Rajesh Patel",
+        inquiry="Looking for a plot in a good residential area. Budget is around 80 lakhs. Prefer locations with good connectivity.",
+        segment="residential",
+        profession="contractor",
+        total_experience_years=15,
+        employment_type="self-employed",
+        customer_location="Whitefield",
+        budget=8000000,
+        location="Sarjapur",
+        timeline_days=90,
+        property_type="plot",
+    ),
+    InboundLead(
+        lead_id="live_res_004",
+        customer_name="Priya Sharma",
+        inquiry="Need a 2BHK apartment in Indiranagar area. Budget is 1 crore. Preferably new construction.",
+        segment="residential",
+        profession="doctor",
+        total_experience_years=8,
+        employment_type="salaried",
+        customer_location="Indiranagar",
+        budget=10000000,
+        location="Indiranagar",
+        timeline_days=45,
+        property_type="2BHK apartment",
+    ),
+    InboundLead(
+        lead_id="live_res_005",
+        customer_name="Arjun Nair",
+        inquiry="Looking for agricultural land or farm in the Sarjapur area for farming purposes. Budget around 50 lakhs.",
+        segment="residential",
+        profession="farmer",
+        total_experience_years=20,
+        employment_type="self-employed",
+        customer_location="Sarjapur",
+        budget=5000000,
+        location="Sarjapur",
+        timeline_days=120,
+        property_type="agricultural land",
+        missing_fields=["financing_status"],
+    ),
+    # ===== NEW TEST LEADS FOR DEAL CLOSURE FLOW =====
+    InboundLead(
+        lead_id="live_res_deal_001",  # QUICK DECISION - Goes through full flow fast
+        customer_name="Rohit Kumar",
+        inquiry="Looking for 2BHK in Whitefield with all modern amenities. Budget 95 lakhs. Ready to decide quickly.",
+        segment="residential",
+        profession="software engineer",
+        total_experience_years=5,
+        employment_type="salaried",
+        customer_location="Marathahalli",
+        budget=9500000,
+        location="Whitefield",
+        timeline_days=15,  # Short timeline = quick decision expected
+        property_type="2BHK apartment",
+    ),
+    InboundLead(
+        lead_id="live_res_deal_002",  # HESITANT BUYER - Needs 2-3 follow-ups before committing
+        customer_name="Kavya Desai",
+        inquiry="Interested in 3BHK in Sarjapur but want to compare with other builders first.",
+        segment="residential",
+        profession="finance manager",
+        total_experience_years=6,
+        employment_type="salaried",
+        customer_location="Whitefield",
+        budget=11500000,
+        location="Sarjapur",
+        timeline_days=90,  # Longer timeline = more hesitation
+        property_type="3BHK apartment",
+    ),
+    InboundLead(
+        lead_id="live_res_deal_003",  # NEGOTIATION BUYER - Will push back on price
+        customer_name="Vikram Iyer",
+        inquiry="2BHK apartment budget is 92 lakhs but willing to go 95 if I get additional parking and warranty.",
+        segment="residential",
+        profession="business owner",
+        total_experience_years=10,
+        employment_type="self-employed",
+        customer_location="Indiranagar",
+        budget=9200000,  # Lower budget - will negotiate
+        location="Indiranagar",
+        timeline_days=60,
+        property_type="2BHK apartment",
+    ),
+    InboundLead(
+        lead_id="live_res_deal_004",  # READY TO PURCHASE - Highest conversion potential
+        customer_name="Sneha Reddy",
+        inquiry="I am ready to book a 3BHK apartment immediately. No questions or negotiations. Just show me the best option.",
+        segment="residential",
+        profession="doctor",
+        total_experience_years=12,
+        employment_type="salaried",
+        customer_location="Indiranagar",
+        budget=12000000,  # Higher budget = higher commitment
+        location="Whitefield",
+        timeline_days=20,  # Very short timeline
+        property_type="3BHK apartment",
+    ),
+    InboundLead(
+        lead_id="live_res_deal_005",  # FAMILY PURCHASE - Will need multiple discussions
+        customer_name="Anil Kapoor",
+        inquiry="Looking for 2BHK for my family. We will need to discuss with wife and in-laws before deciding. Budget around 98 lakhs.",
+        segment="residential",
+        profession="banker",
+        total_experience_years=15,
+        employment_type="salaried",
+        customer_location="Marathahalli",
+        budget=9800000,
+        location="Whitefield",
+        timeline_days=45,
+        property_type="2BHK apartment",
     ),
     InboundLead(
         lead_id="live_com_001",
@@ -250,7 +365,205 @@ class LiveTrafficAgent:
                 ),
             )
 
+        # ============= RESIDENTIAL POST-SITE-VISIT DEAL CLOSURE FLOW =============
+        
+        if opportunity.segment == "residential" and opportunity.cab_booking_status == "booked":
+            # After cab is booked, simulate site visit completion
+            if not opportunity.site_visit_completed:
+                return (
+                    "Site visit completed. Collecting customer feedback before sending proposal.",
+                    Action(
+                        action_type="advance_stage",
+                        opportunity_id=opportunity_id,
+                        stage="site_visit_completed",
+                        message="Site visit completed with positive customer feedback.",
+                    ),
+                )
+        
+        if opportunity.segment == "residential" and opportunity.site_visit_completed and not opportunity.proposal_sent:
+            # Send proposal after site visit
+            booking_amount = int((opportunity.budget or 0) * 0.075)  # 7.5% of property price as booking amount
+            proposal_details = {
+                "property_id": opportunity.recommended_property_id,
+                "proposed_price": opportunity.budget,
+                "booking_amount": booking_amount,
+                "payment_plan": [
+                    {"milestone": "Booking", "percentage": 7.5, "amount": booking_amount},
+                    {"milestone": "Agreement", "percentage": 20, "amount": int((opportunity.budget or 0) * 0.20)},
+                    {"milestone": "Construction", "percentage": 72.5, "amount": int((opportunity.budget or 0) * 0.725)},
+                ],
+                "possession_months": 24,
+                "builder_amenities": ["gym", "clubhouse", "parking", "security"],
+            }
+            return (
+                "Site visit was positive, so prepare and send the formal proposal with booking amount and payment plan.",
+                Action(
+                    action_type="send_proposal",
+                    opportunity_id=opportunity_id,
+                    proposal_details=proposal_details,
+                    booking_amount_quoted=booking_amount,
+                    message=f"Sent formal proposal with ₹{booking_amount:,} booking amount due in 72 hours.",
+                ),
+            )
+        
+        if opportunity.segment == "residential" and opportunity.proposal_sent and opportunity.follow_up_count < 3:
+            # Follow-up cycle: Max 3 follow-ups
+            follow_up_responses = opportunity.follow_up_responses or []
+            last_response = follow_up_responses[-1] if follow_up_responses else None
+            
+            # Check if customer has responded positively
+            if last_response and last_response.get("status") == "positive":
+                # Move to payment phase
+                if not opportunity.booking_amount_paid:
+                    return (
+                        "Customer accepted proposal and is ready to pay. Send payment reminder with booking amount details.",
+                        Action(
+                            action_type="send_payment_reminder",
+                            opportunity_id=opportunity_id,
+                            booking_amount_quoted=opportunity.booking_amount_quoted,
+                            message=f"Payment reminder: Please transfer ₹{opportunity.booking_amount_quoted:,} to builder's escrow account within 72 hours.",
+                        ),
+                    )
+            
+            # Check if customer has objections
+            if last_response and last_response.get("status") == "objection":
+                objections = last_response.get("objections", [])
+                if opportunity.negotiation_round < 3:
+                    # Offer negotiation
+                    return (
+                        f"Customer has objections: {', '.join(objections)}. Preparing negotiation offer.",
+                        Action(
+                            action_type="send_negotiation_offer",
+                            opportunity_id=opportunity_id,
+                            customer_objections=objections,
+                            negotiation_offer={
+                                "price_adjustment": -150000,  # 1.5 lakh discount
+                                "extended_warranty": True,
+                                "additional_parking": 1,
+                            },
+                            message="Sent negotiation offer: 1.5L discount, extended warranty, and additional parking spot.",
+                        ),
+                    )
+                else:
+                    # Too many rounds, move to nurture
+                    return (
+                        "Negotiation impasse after 3 rounds. Moving lead to nurture for cool-off period.",
+                        Action(
+                            action_type="move_to_nurture",
+                            opportunity_id=opportunity_id,
+                            message="Negotiation stalled. Lead moved to nurture for 14 days before retry.",
+                        ),
+                    )
+            
+            # No response or partial response - send follow-up
+            follow_up_num = opportunity.follow_up_count + 1
+            return (
+                f"Sending follow-up #{follow_up_num} to check on proposal status and understand customer concerns.",
+                Action(
+                    action_type="customer_follow_up",
+                    opportunity_id=opportunity_id,
+                    follow_up_number=follow_up_num,
+                    message=f"Follow-up #{follow_up_num}: Have you reviewed the proposal? Do you have any questions or concerns?",
+                ),
+            )
+        
+        if opportunity.segment == "residential" and opportunity.proposal_sent and opportunity.follow_up_count >= 3:
+            # Max follow-ups reached without positive response
+            return (
+                "Maximum follow-ups completed without positive response. Moving to nurture.",
+                Action(
+                    action_type="move_to_nurture",
+                    opportunity_id=opportunity_id,
+                    message="Lead unresponsive after 3 follow-ups. Moved to nurture for later retry.",
+                ),
+            )
+        
+        if opportunity.segment == "residential" and opportunity.booking_amount_paid > 0 and not opportunity.deal_finalized:
+            # Payment received, finalize deal
+            return (
+                "Booking amount received. Finalizing deal and preparing booking agreement.",
+                Action(
+                    action_type="finalize_deal",
+                    opportunity_id=opportunity_id,
+                    closing_value=opportunity.budget,
+                    message="Deal finalized! Booking agreement sent. Welcome to our project.",
+                ),
+            )
+
         if opportunity.segment == "commercial":
+            if opportunity.stage == "landlord_meeting_scheduled":
+                return (
+                    "After the landlord meeting, move into active negotiation on the commercial terms.",
+                    Action(
+                        action_type="negotiate_terms",
+                        opportunity_id=opportunity_id,
+                        lease_terms=opportunity.lease_terms,
+                        message="Negotiated commercials and lock-in structure with the landlord.",
+                    ),
+                )
+            if opportunity.pending_objections:
+                return (
+                    "Address the landlord objections before asking for final approval on the proposal.",
+                    Action(
+                        action_type="resolve_objection",
+                        opportunity_id=opportunity_id,
+                        objections_resolved=opportunity.pending_objections,
+                        message="Resolved the landlord's objections on deposit, fit-out, and lock-in.",
+                    ),
+                )
+            if opportunity.landlord_counter_offer:
+                return (
+                    "Accept the landlord counter-offer when it still fits the tenant budget and deal logic.",
+                    Action(
+                        action_type="accept_counter_offer",
+                        opportunity_id=opportunity_id,
+                        message="Accepted the landlord counter-offer and updated the working commercial terms.",
+                    ),
+                )
+            if opportunity.stage == "negotiation" and not opportunity.proposal_sent:
+                return (
+                    "Once the commercials are aligned, issue the formal proposal before closing.",
+                    Action(
+                        action_type="send_commercial_proposal",
+                        opportunity_id=opportunity_id,
+                        message="Sent the commercial proposal with negotiated terms for final sign-off.",
+                    ),
+                )
+            if opportunity.stage == "negotiation" and opportunity.proposal_sent:
+                closing_value = None
+                if opportunity.lease_terms:
+                    terms = opportunity.lease_terms.model_dump() if hasattr(opportunity.lease_terms, "model_dump") else opportunity.lease_terms
+                    closing_value = int(terms.get("monthly_rent", 0)) * int(terms.get("lease_years", 0)) * 12
+                return (
+                    "The proposal is out and aligned, so close the commercial deal.",
+                    Action(
+                        action_type="close_deal",
+                        opportunity_id=opportunity_id,
+                        closing_value=closing_value,
+                        message="Closed the lease with the landlord and tenant on the negotiated terms.",
+                    ),
+                )
+            if opportunity.stage != "landlord_meeting_scheduled":
+                return (
+                    "Property fit, terms, and customer confirmation are in place, so book the landlord meeting.",
+                    Action(
+                        action_type="schedule_landlord_meeting",
+                        opportunity_id=opportunity_id,
+                        property_id=opportunity.recommended_property_id,
+                        appointment_party="landlord",
+                        message="Booked a landlord meeting to review terms and move toward negotiation.",
+                    ),
+                )
+            return (
+                "Continue commercial follow-up with the landlord side until the deal is closed.",
+                Action(
+                    action_type="schedule_landlord_meeting",
+                    opportunity_id=opportunity_id,
+                    property_id=opportunity.recommended_property_id,
+                    appointment_party="landlord",
+                    message="Reconfirming the landlord meeting to keep the process moving.",
+                ),
+            )
             if opportunity.stage == "landlord_meeting_scheduled":
                 return (
                     "After the landlord meeting, move into active negotiation on the commercial terms.",

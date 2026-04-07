@@ -91,10 +91,43 @@ class OpportunityDetail(BaseModel):
     call_transcript: list[CallTurn] = Field(default_factory=list)
     appointment_type: str | None = None
     appointment_party: str | None = None
+    
+    # Site Visit & Proposal Phase
+    site_visit_completed: bool = False
+    site_visit_date: str | None = None
+    site_visit_feedback: str | None = None  # "positive", "interested", "not_interested"
+    site_visit_feedback_positive: bool = False
+    
     proposal_sent: bool = False
-    deal_closed: bool = False
-    closing_value: int | None = None
+    proposal_sent_date: str | None = None
+    proposal_details: dict[str, Any] = Field(default_factory=dict)
+    booking_amount_quoted: int | None = None
+    
+    # Follow-up Phase
+    follow_up_count: int = 0
+    follow_up_dates: list[str] = Field(default_factory=list)
+    follow_up_responses: list[dict[str, Any]] = Field(default_factory=list)
+    last_follow_up_date: str | None = None
+    
+    # Negotiation Phase
+    negotiation_status: str | None = None  # "pending", "resolved", "failed"
     negotiation_round: int = 0
+    negotiation_offers: list[dict[str, Any]] = Field(default_factory=list)
+    customer_objections: list[str] = Field(default_factory=list)
+    
+    # Payment Phase
+    booking_amount_paid: int = 0
+    booking_payment_date: str | None = None
+    booking_payment_method: str | None = None  # "bank_transfer", "check", "online"
+    booking_payment_reference: str | None = None
+    
+    # Deal Finalization
+    deal_finalized: bool = False
+    deal_closed: bool = False
+    deal_closed_date: str | None = None
+    closing_value: int | None = None
+    final_action_status: str | None = None  # "success", "abandoned", "pending"
+    
     pending_objections: list[str] = Field(default_factory=list)
     landlord_counter_offer: LeaseTerms | None = None
     assigned_action: str | None = None
@@ -133,6 +166,12 @@ class Action(BaseModel):
         "schedule_visit",
         "schedule_builder_appointment",
         "schedule_landlord_meeting",
+        "send_proposal",
+        "customer_follow_up",
+        "send_negotiation_offer",
+        "send_payment_reminder",
+        "process_booking_payment",
+        "finalize_deal",
         "negotiate_terms",
         "resolve_objection",
         "accept_counter_offer",
@@ -160,6 +199,16 @@ class Action(BaseModel):
     objections_resolved: list[str] = Field(default_factory=list)
     stage: str | None = None
     reason: str | None = None
+    
+    # Proposal & Deal Closure Fields
+    proposal_details: dict[str, Any] = Field(default_factory=dict)
+    booking_amount_quoted: int | None = None
+    follow_up_number: int | None = None  # Which follow-up round (1, 2, 3, etc.)
+    customer_feedback: str | None = None  # Feedback from follow-up
+    negotiation_offer: dict[str, Any] = Field(default_factory=dict)  # Modified offer details
+    booking_amount_paid: int | None = None
+    booking_payment_method: str | None = None
+    booking_payment_reference: str | None = None
 
 
 class StepResult(BaseModel):
