@@ -1237,7 +1237,7 @@ def live_dashboard() -> HTMLResponse:
           <span>${leadId}</span>
         </div>
         <div>${lead.inquiry || ""}</div>
-        ${lead.last_contact_note ? `<div class="score">Call Note: ${lead.last_contact_note}</div>` : ""}
+        ${lead.last_contact_note ? "<div class='score'>Call Note: " + lead.last_contact_note + "</div>" : ""}
         <div class="score">Stage: ${lead.final_stage || lead.stage || "receiving"} | Score: ${lead.final_score ?? lead.grader_score ?? 0}</div>
       `;
     }
@@ -1305,7 +1305,7 @@ def live_dashboard() -> HTMLResponse:
             </div>
             <div style="font-size: 0.85em; color: rgba(255,255,255,0.8); margin-left: 28px;">
               <strong>Lead:</strong> ${customerName} (${leadId})
-              ${details ? `<br><strong>Details:</strong> ${details}` : ''}
+              ${details ? "<br><strong>Details:</strong> " + details : ""}
             </div>
           </div>
           <button style="padding: 4px 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: #fff; cursor: pointer; font-size: 0.8em;" onclick="this.parentElement.parentElement.classList.toggle('expanded');">Details</button>
@@ -1956,7 +1956,7 @@ def live_dashboard() -> HTMLResponse:
         }
         
         // Try to parse budget if mentioned (look for numbers followed by crore/lakh/lac)
-        const budgetMatch = testText.match(/(\\d+)\\s*(crore|lakh|lac)?/i);
+        const budgetMatch = testText.match(/(\d+)\s*(crore|lakh|lac)?/i);
         if (budgetMatch) {
           let amount = parseInt(budgetMatch[1]);
           if (budgetMatch[2]) {
@@ -1968,7 +1968,7 @@ def live_dashboard() -> HTMLResponse:
         }
         
         // Try to parse timeline from text
-        const daysMatch = testText.match(/(\\d+)\\s*(?:day|week|month)/i);
+        const daysMatch = testText.match(/(\d+)\s*(?:day|week|month)/i);
         if (daysMatch) {
           let days = parseInt(daysMatch[1]);
           const unit = daysMatch[0].toLowerCase();
@@ -1988,75 +1988,119 @@ def live_dashboard() -> HTMLResponse:
         testInputLog.textContent = `❌ Error: ${error.message}`;
       }
     }
+
+    async function consumeStream(response) {
+      console.log("[STREAM_START] Starting stream consumption");
       startButton.disabled = true;
       submitManualButton.disabled = true;
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let eventCount = 0;
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\\n");
-        buffer = lines.pop();
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const event = JSON.parse(line);
-          addEventRow(event);
-
-          if (event.event === "lead_received") {
-            leads.set(event.lead_id, {
-              customer_name: event.payload.customer_name,
-              inquiry: event.payload.inquiry,
-              stage: "received",
-              segment: event.payload.segment || document.getElementById("segment").value
-            });
-            renderLeadCard(event.lead_id);
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) {
+            console.log("[STREAM_DONE] Stream reading complete after " + eventCount + " events");
+            break;
           }
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop();
 
-          if (event.event === "lead_step") {
-            const lead = leads.get(event.lead_id) || {};
-            lead.grader_score = event.payload.grader_score;
-            lead.stage = event.payload.last_action_result || lead.stage;
-            if (event.payload.call_transcript && event.payload.call_transcript.length) {
-              const customerTurns = event.payload.call_transcript.filter((turn) => turn.speaker === "customer");
-              lead.last_contact_note = customerTurns.length ? customerTurns[customerTurns.length - 1].text : event.payload.call_outcome;
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const event = JSON.parse(line);
+              eventCount++;
+              console.log("[EVENT_" + eventCount + "] " + event.event + " (Lead: " + (event.lead_id || "N/A") + ")");
+              addEventRow(event);
+
+              if (event.event === "lead_received") {
+                leads.set(event.lead_id, {
+                  customer_name: event.payload.customer_name,
+                  inquiry: event.payload.inquiry,
+                  stage: "received",
+                  segment: event.payload.segment || document.getElementById("segment").value
+                });
+                renderLeadCard(event.lead_id);
+              }
+
+              if (event.event === "lead_step") {
+                const lead = leads.get(event.lead_id) || {};
+                lead.grader_score = event.payload.grader_score;
+                lead.stage = event.payload.last_action_result || lead.stage;
+                if (event.payload.call_transcript && event.payload.call_transcript.length) {
+                  const customerTurns = event.payload.call_transcript.filter((turn) => turn.speaker === "customer");
+                  lead.last_contact_note = customerTurns.length ? customerTurns[customerTurns.length - 1].text : event.payload.call_outcome;
+                }
+                leads.set(event.lead_id, lead);
+                renderLeadCard(event.lead_id);
+                updateCabPanelFromPayload(event.payload, lead);
+              }
+
+              if (event.event === "lead_completed") {
+                const lead = leads.get(event.lead_id) || {};
+                lead.final_score = event.payload.final_score;
+                lead.final_stage = event.payload.final_stage;
+                leads.set(event.lead_id, lead);
+                renderLeadCard(event.lead_id);
+              }
+
+              if (event.event === "run_completed") {
+                statusText.textContent = "Completed " + event.payload.processed_leads + " simulated leads.";
+                console.log("[RUN_COMPLETE] Run completed with " + event.payload.processed_leads + " leads");
+              }
+            } catch (parseErr) {
+              console.error("[PARSE_ERROR] Failed to parse line:", line, parseErr);
             }
-            leads.set(event.lead_id, lead);
-            renderLeadCard(event.lead_id);
-            updateCabPanelFromPayload(event.payload, lead);
-          }
-
-          if (event.event === "lead_completed") {
-            const lead = leads.get(event.lead_id) || {};
-            lead.final_score = event.payload.final_score;
-            lead.final_stage = event.payload.final_stage;
-            leads.set(event.lead_id, lead);
-            renderLeadCard(event.lead_id);
-          }
-
-          if (event.event === "run_completed") {
-            statusText.textContent = `Completed ${event.payload.processed_leads} simulated leads.`;
           }
         }
+      } catch (streamErr) {
+        console.error("[STREAM_ERROR] Stream error:", streamErr);
+        statusText.textContent = "Stream error: " + streamErr.message;
       }
 
       startButton.disabled = false;
       submitManualButton.disabled = false;
+      console.log("[REFRESH] Refreshing charts...");
       await fetchAndRenderConversionChart();
       await fetchAndRenderLeadCategorization();
+      console.log("[REFRESH_DONE] Charts refreshed");
     }
 
     async function startStream() {
-      resetBoards();
-      statusText.textContent = "Streaming default CRM traffic...";
-      // Reset backend metrics and categorization for new stream
-      await fetch("/metrics/reset", { method: "POST" });
-      await fetch("/lead-categorization/reset", { method: "POST" });
-      const response = await fetch("/simulate/live/stream?delay_seconds=0.35");
-      await consumeStream(response);
+      try {
+        console.log("[START] Start Stream clicked");
+        resetBoards();
+        statusText.textContent = "Streaming default CRM traffic...";
+        console.log("[RESET] Resetting metrics...");
+        // Reset backend metrics and categorization for new stream
+        let metricsRes = await fetch("/metrics/reset", { method: "POST" });
+        console.log("[METRICS] Metrics reset:", metricsRes.status);
+        
+        let categRes = await fetch("/lead-categorization/reset", { method: "POST" });
+        console.log("[CATEGORY] Categorization reset:", categRes.status);
+        
+        console.log("[FETCH] Fetching stream...");
+        const response = await fetch("/simulate/live/stream?delay_seconds=0.35");
+        console.log("[STREAM] Stream fetch status:", response.status);
+        
+        if (!response.ok) {
+          statusText.textContent = "Error: Stream failed with status " + response.status;
+          throw new Error("Stream failed: " + response.status);
+        }
+        
+        console.log("[CONSUME] Consuming stream...");
+        await consumeStream(response);
+        console.log("[SUCCESS] Stream completed successfully");
+      } catch (error) {
+        console.error("[ERROR] Error in startStream:", error);
+        statusText.textContent = "Error: " + error.message;
+        startButton.disabled = false;
+        submitManualButton.disabled = false;
+      }
     }
 
     async function runManualLead() {
@@ -2077,46 +2121,36 @@ def live_dashboard() -> HTMLResponse:
       try {
         const response = await fetch("/metrics/conversions");
         const data = await response.json();
-        const filter = segmentFilter.value;
+        const filter = segmentFilter ? segmentFilter.value : "all";
         
-        // Prepare data based on filter
-        let chartData = {};
+        // Prepare data based on filter with unified labels
+        let chartData = {
+          labels: ["Leads Received", "Contacted", "Qualified", "Engaged", "Deal Closed"],
+          residential: null,
+          commercial: null
+        };
+        
         let residentialData = data.residential;
         let commercialData = data.commercial;
         
         if (filter === "residential" || filter === "all") {
-          chartData = {
-            labels: ["Leads Received", "Contacted", "Interested in Visit", "Appointment Scheduled", "Deal Closed"],
-            residential: [
-              residentialData.total_leads,
-              residentialData.contacted,
-              residentialData.interested_in_visit,
-              residentialData.appointment_scheduled,
-              residentialData.deal_closed
-            ]
-          };
+          chartData.residential = [
+            residentialData.total_leads,
+            residentialData.contacted,
+            residentialData.interested_in_visit,
+            residentialData.appointment_scheduled,
+            residentialData.deal_closed
+          ];
         }
         
         if (filter === "commercial" || filter === "all") {
-          if (chartData.labels) {
-            chartData.labels = ["Leads Received", "Contacted", "Proposal Sent", "Negotiation", "Deal Closed"];
-            chartData.commercial = [
-              commercialData.total_leads,
-              commercialData.contacted,
-              commercialData.proposal_sent,
-              commercialData.negotiation,
-              commercialData.deal_closed
-            ];
-          } else {
-            chartData.labels = ["Leads Received", "Contacted", "Proposal Sent", "Negotiation", "Deal Closed"];
-            chartData.commercial = [
-              commercialData.total_leads,
-              commercialData.contacted,
-              commercialData.proposal_sent,
-              commercialData.negotiation,
-              commercialData.deal_closed
-            ];
-          }
+          chartData.commercial = [
+            commercialData.total_leads,
+            commercialData.contacted,
+            commercialData.proposal_sent,
+            commercialData.negotiation,
+            commercialData.deal_closed
+          ];
         }
         
         // Update funnel metrics boxes
@@ -2130,8 +2164,9 @@ def live_dashboard() -> HTMLResponse:
     }
 
     function updateFunnelMetrics(chartData, data) {
+      if (!funnelMetrics) return;
       funnelMetrics.innerHTML = "";
-      const filter = segmentFilter.value;
+      const filter = segmentFilter ? segmentFilter.value : "all";
       
       if (filter === "residential" || filter === "all") {
         const residential = data.residential;
@@ -2168,7 +2203,8 @@ def live_dashboard() -> HTMLResponse:
 
     function renderConversionChart(chartData) {
       const ctx = document.getElementById("conversionChart");
-      const filter = segmentFilter.value;
+      if (!ctx || !chartData) return;
+      const filter = segmentFilter ? segmentFilter.value : "all";
       
       const datasets = [];
       const colors = {
@@ -2329,11 +2365,14 @@ def live_dashboard() -> HTMLResponse:
 
     function renderMarketRateChart(marketRates) {
       const ctx = document.getElementById("marketRateChart");
-      const locationFilter = marketLocationFilter.value;
-      const segment = segmentSelect.value;
+      if (!ctx || !marketRates) return;
+      const locationFilter = marketLocationFilter ? marketLocationFilter.value : "all";
+      const segment = segmentSelect ? segmentSelect.value : "residential";
       
       // Determine the property type to filter by
-      let selectedPropertyType = segment === "residential" ? propertyTypeInput.value : businessTypeInput.value;
+      let selectedPropertyType = segment === "residential" ? 
+        (propertyTypeInput ? propertyTypeInput.value : "") : 
+        (businessTypeInput ? businessTypeInput.value : "");
       
       // Normalize property type for matching
       const normalizePropertyType = (ptype) => {
@@ -2441,12 +2480,15 @@ def live_dashboard() -> HTMLResponse:
         });
       }
     }
-
-    function updateMarketInfoGrid(marketRates) {
+if (!marketInfoGrid) return;
       marketInfoGrid.innerHTML = "";
-      const locationFilter = marketLocationFilter.value;
-      const segment = segmentSelect.value;
+      const locationFilter = marketLocationFilter ? marketLocationFilter.value : "all";
+      const segment = segmentSelect ? segmentSelect.value : "residential";
       
+      // Determine the property type to filter by
+      let selectedPropertyType = segment === "residential" ? 
+        (propertyTypeInput ? propertyTypeInput.value : "") : 
+        (businessTypeInput ? businessTypeInput.value : "")
       // Determine the property type to filter by
       let selectedPropertyType = segment === "residential" ? propertyTypeInput.value : businessTypeInput.value;
       const normalizePropertyType = (ptype) => {
@@ -2486,38 +2528,73 @@ def live_dashboard() -> HTMLResponse:
       }
     }
 
-    startButton.addEventListener("click", startStream);
-    submitManualButton.addEventListener("click", runManualLead);
-    loadDefaultButton.addEventListener("click", loadWhitefieldExample);
-    loadCommercialButton.addEventListener("click", loadCommercialExample);
-    segmentSelect.addEventListener("change", () => {
-      syncSegmentFields();
-      fetchAndRenderMarketRates();
+    // Setup event listeners with null checks
+    if (startButton) startButton.addEventListener("click", startStream);
+    if (submitManualButton) submitManualButton.addEventListener("click", runManualLead);
+    if (loadDefaultButton) loadDefaultButton.addEventListener("click", loadWhitefieldExample);
+    if (loadCommercialButton) loadCommercialButton.addEventListener("click", loadCommercialExample);
+    if (segmentSelect) {
+      segmentSelect.addEventListener("change", () => {
+        syncSegmentFields();
+        fetchAndRenderMarketRates();
+      });
+    }
+    if (startVoiceIntakeButton) startVoiceIntakeButton.addEventListener("click", startVoiceIntake);
+    if (dictateInquiryButton) dictateInquiryButton.addEventListener("click", dictateInquiry);
+    if (playLatestCallButton) playLatestCallButton.addEventListener("click", playLatestCall);
+    if (submitTestInquiryButton) submitTestInquiryButton.addEventListener("click", submitTestInquiry);
+    if (segmentFilter) segmentFilter.addEventListener("change", () => {
+      fetchAndRenderConversionChart();
     });
-    startVoiceIntakeButton.addEventListener("click", startVoiceIntake);
-    dictateInquiryButton.addEventListener("click", dictateInquiry);
-    playLatestCallButton.addEventListener("click", playLatestCall);
-    submitTestInquiryButton.addEventListener("click", submitTestInquiry);
-    segmentFilter.addEventListener("change", fetchAndRenderConversionChart);
-    resetMetricsBtn.addEventListener("click", resetConversionMetrics);
-    marketLocationFilter.addEventListener("change", fetchAndRenderMarketRates);
-    propertyTypeInput.addEventListener("change", fetchAndRenderMarketRates);
-    propertyTypeInput.addEventListener("blur", fetchAndRenderMarketRates);
-    propertyTypeInput.addEventListener("keyup", fetchAndRenderMarketRates);
-    businessTypeInput.addEventListener("change", fetchAndRenderMarketRates);
-    businessTypeInput.addEventListener("blur", fetchAndRenderMarketRates);
-    businessTypeInput.addEventListener("keyup", fetchAndRenderMarketRates);
+    if (resetMetricsBtn) resetMetricsBtn.addEventListener("click", resetConversionMetrics);
+    if (marketLocationFilter) marketLocationFilter.addEventListener("change", fetchAndRenderMarketRates);
+    if (propertyTypeInput) {
+      propertyTypeInput.addEventListener("change", fetchAndRenderMarketRates);
+      propertyTypeInput.addEventListener("blur", fetchAndRenderMarketRates);
+      propertyTypeInput.addEventListener("keyup", fetchAndRenderMarketRates);
+    }
+    if (businessTypeInput) {
+      businessTypeInput.addEventListener("change", fetchAndRenderMarketRates);
+      businessTypeInput.addEventListener("blur", fetchAndRenderMarketRates);
+      businessTypeInput.addEventListener("keyup", fetchAndRenderMarketRates);
+    }
     if (!recognitionSupported && !playbackSupported) {
       voiceLog.textContent = "Voice features are unavailable in this browser. Use Chrome or Edge for speech recognition.";
     } else if (!recognitionSupported) {
       voiceLog.textContent = "Voice playback is available, but microphone dictation is not supported in this browser.";
-    } else if (!playbackSupported) {
-      voiceLog.textContent = "Voice dictation is available, but speech playback is not supported in this browser.";
-    }
-    loadWhitefieldExample();
-    fetchAndRenderConversionChart();
-    fetchAndRenderMarketRates();
-    fetchAndRenderLeadCategorization();
+    
+    // Initialize the dashboard
+    console.log("Dashboard initializing...");
+    (async function() {
+      try {
+        loadWhitefieldExample();
+        console.log("Default example loaded");
+      } catch (e) {
+        console.error("Error loading default example:", e);
+      }
+      
+      try {
+        await fetchAndRenderConversionChart();
+        console.log("Conversion chart rendered");
+      } catch (e) {
+        console.error("Error rendering conversion chart:", e);
+      }
+      
+      try {
+        await fetchAndRenderMarketRates();
+        console.log("Market rates rendered");
+      } catch (e) {
+        console.error("Error rendering market rates:", e);
+      }
+      
+      try {
+        await fetchAndRenderLeadCategorization();
+        console.log("Lead categorization rendered");
+      } catch (e) {
+        console.error("Error rendering lead categorization:", e);
+      }
+      console.log("Dashboard initialization complete");
+    })();
   </script>
 </body>
 </html>
