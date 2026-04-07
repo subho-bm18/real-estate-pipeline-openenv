@@ -1,3 +1,15 @@
+
+---
+title: real-estate-pipeline-openenv
+emoji: 🚀
+colorFrom: blue
+colorTo: green
+sdk: gradio
+sdk_version: "4.0.0"
+python_version: "3.11"
+app_file: app.py
+pinned: false
+---
 # Real Estate Pipeline and Lease Strategy Simulator
 
 This project implements an OpenEnv-style environment for a real-world real-estate workflow. The agent manages a mixed pipeline of residential and commercial opportunities, qualifies leads, requests missing information, matches properties, and selects the right next step to move deals forward.
