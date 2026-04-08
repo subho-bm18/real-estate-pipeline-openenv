@@ -24,6 +24,17 @@ app = FastAPI(title="Real Estate Pipeline OpenEnv", version="0.1.0")
 env = RealEstatePipelineEnv()
 latest_call_cache: dict[str, object] = {}
 
+# Funnel metrics tracking
+funnel_metrics = {
+    "leads_received": 0,
+    "contacted": 0,
+    "qualified": 0,
+    "engaged": 0,
+    "deal_closed": 0,
+    "purchased": 0,
+}
+lead_stages: dict[str, str] = {}  # Track each lead's current stage
+
 
 class ResetRequest(BaseModel):
     task_id: str | None = None
@@ -78,6 +89,21 @@ def state() -> dict[str, object]:
         return env.state()
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/metrics/funnel")
+def get_funnel_metrics() -> dict[str, object]:
+    """Returns funnel metrics: leads received → contacted → qualified → engaged → deal closed → purchased"""
+    return {
+        "funnel_stages": funnel_metrics,
+        "conversion_rates": {
+            "contacted_rate": round((funnel_metrics["contacted"] / max(funnel_metrics["leads_received"], 1)) * 100, 1),
+            "qualified_rate": round((funnel_metrics["qualified"] / max(funnel_metrics["contacted"], 1)) * 100, 1),
+            "engaged_rate": round((funnel_metrics["engaged"] / max(funnel_metrics["qualified"], 1)) * 100, 1),
+            "deal_closed_rate": round((funnel_metrics["deal_closed"] / max(funnel_metrics["engaged"], 1)) * 100, 1),
+            "purchased_rate": round((funnel_metrics["purchased"] / max(funnel_metrics["deal_closed"], 1)) * 100, 1),
+        }
+    }
 
 
 @app.get("/calls/latest")
@@ -252,19 +278,65 @@ def _cache_call_stream(stream):
             continue
 
         payload = event.get("payload", {})
-        if event.get("event") == "lead_step" and payload.get("call_transcript"):
-            latest_call_cache.clear()
-            latest_call_cache.update(
-                {
-                    "opportunity_id": event.get("lead_id"),
-                    "customer_name": payload.get("customer_name") or event.get("lead_id"),
-                    "available": True,
-                    "customer_contacted": True,
-                    "call_outcome": payload.get("call_outcome"),
-                    "last_contact_note": _last_customer_turn(payload.get("call_transcript", [])),
-                    "call_transcript": payload.get("call_transcript", []),
-                }
-            )
+        lead_id = event.get("lead_id")
+        event_type = event.get("event")
+
+        # Track funnel metrics
+        if event_type == "lead_received":
+            funnel_metrics["leads_received"] += 1
+            lead_stages[lead_id] = "received"
+        
+        elif event_type == "lead_step":
+            current_stage = lead_stages.get(lead_id, "received")
+            last_action = payload.get("last_action_result", "")
+            
+            # Update stage based on action result
+            if last_action and current_stage != last_action:
+                # Prevent double-counting by checking if we're moving to a new stage
+                stage_order = ["received", "contacted", "qualified", "engaged", "deal_closed", "purchased"]
+                if last_action in stage_order:
+                    old_index = stage_order.index(current_stage) if current_stage in stage_order else 0
+                    new_index = stage_order.index(last_action)
+                    
+                    # Increment metrics for each stage reached
+                    if new_index > old_index:
+                        for idx in range(old_index + 1, new_index + 1):
+                            stage = stage_order[idx]
+                            if stage == "contacted" and funnel_metrics["contacted"] == funnel_metrics.get("_contacted_count", 0):
+                                funnel_metrics["contacted"] += 1
+                                funnel_metrics["_contacted_count"] = funnel_metrics["contacted"]
+                            elif stage == "qualified" and current_stage in ["received", "contacted"]:
+                                funnel_metrics["qualified"] += 1
+                            elif stage == "engaged" and current_stage in ["received", "contacted", "qualified"]:
+                                funnel_metrics["engaged"] += 1
+                            elif stage == "deal_closed" and current_stage in ["received", "contacted", "qualified", "engaged"]:
+                                funnel_metrics["deal_closed"] += 1
+                    lead_stages[lead_id] = last_action
+            
+            if payload.get("call_transcript"):
+                latest_call_cache.clear()
+                latest_call_cache.update(
+                    {
+                        "opportunity_id": lead_id,
+                        "customer_name": payload.get("customer_name") or lead_id,
+                        "available": True,
+                        "customer_contacted": True,
+                        "call_outcome": payload.get("call_outcome"),
+                        "last_contact_note": _last_customer_turn(payload.get("call_transcript", [])),
+                        "call_transcript": payload.get("call_transcript", []),
+                    }
+                )
+        
+        elif event_type == "lead_completed":
+            final_stage = payload.get("final_stage", "")
+            if final_stage == "deal_closed":
+                funnel_metrics["deal_closed"] += 1
+            lead_stages[lead_id] = "completed"
+        
+        elif event_type == "run_completed":
+            # Reset on new run
+            funnel_metrics["leads_received"] = payload.get("processed_leads", 0)
+        
         yield raw_event
 
 
@@ -529,12 +601,58 @@ def live_dashboard() -> HTMLResponse:
       font-size: 0.84rem;
       color: #263536;
     }
+    .chart-container {
+      position: relative;
+      width: 100%;
+      height: 420px;
+      margin-bottom: 18px;
+    }
+    .funnel-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+    .chart-section {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .funnel-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 16px;
+      background: rgba(245, 250, 248, 0.9);
+      border-radius: 12px;
+      border: 1px solid var(--accent-soft);
+      margin-bottom: 10px;
+    }
+    .funnel-stage-label {
+      font-weight: 700;
+      color: var(--accent);
+      font-size: 0.95rem;
+    }
+    .funnel-stage-count {
+      font-size: 1.8rem;
+      color: var(--ink);
+      font-weight: 700;
+    }
+    .funnel-stage-rate {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
     @media (max-width: 900px) {
       .grid { grid-template-columns: 1fr; }
       h1 { max-width: none; }
       .form-grid { grid-template-columns: 1fr; }
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div class="shell">
@@ -546,6 +664,39 @@ def live_dashboard() -> HTMLResponse:
     <div class="controls">
       <button id="startButton">Start Stream</button>
       <div class="status" id="statusText">Ready to simulate inbound CRM traffic.</div>
+    </div>
+    <div class="funnel-grid">
+      <div class="chart-section">
+        <h2>Business Funnel: Lead to Purchase</h2>
+        <div class="chart-container">
+          <canvas id="funnelChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-section">
+        <h2>Conversion Rates by Stage</h2>
+        <div id="conversionMetrics">
+          <div class="funnel-stage">
+            <div class="funnel-stage-label">Leads Received → Contacted</div>
+            <div class="funnel-stage-count" id="rate1">0%</div>
+          </div>
+          <div class="funnel-stage">
+            <div class="funnel-stage-label">Contacted → Qualified</div>
+            <div class="funnel-stage-count" id="rate2">0%</div>
+          </div>
+          <div class="funnel-stage">
+            <div class="funnel-stage-label">Qualified → Engaged</div>
+            <div class="funnel-stage-count" id="rate3">0%</div>
+          </div>
+          <div class="funnel-stage">
+            <div class="funnel-stage-label">Engaged → Deal Closed</div>
+            <div class="funnel-stage-count" id="rate4">0%</div>
+          </div>
+          <div class="funnel-stage">
+            <div class="funnel-stage-label">Deal Closed → Purchased</div>
+            <div class="funnel-stage-count" id="rate5">0%</div>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="grid">
       <section>
@@ -687,6 +838,10 @@ def live_dashboard() -> HTMLResponse:
     const playbackSupported = Boolean(window.speechSynthesis);
     let recognitionBusy = false;
 
+    // Funnel chart variables
+    let funnelChartInstance = null;
+    const funnelCtx = document.getElementById("funnelChart")?.getContext("2d");
+
     function renderLeadCard(leadId) {
       const lead = leads.get(leadId);
       if (!lead) return;
@@ -713,6 +868,99 @@ def live_dashboard() -> HTMLResponse:
       row.className = "event-row";
       row.innerHTML = `<div class="event-tag">${event.event}</div><pre>${JSON.stringify(event, null, 2)}</pre>`;
       eventList.prepend(row);
+    }
+
+    function fetchAndRenderFunnelChart() {
+      fetch("/metrics/funnel")
+        .then((response) => response.json())
+        .then((data) => {
+          const stages = data.funnel_stages || {};
+          const rates = data.conversion_rates || {};
+          
+          // Update conversion rate display
+          document.getElementById("rate1").textContent = rates.contacted_rate + "%";
+          document.getElementById("rate2").textContent = rates.qualified_rate + "%";
+          document.getElementById("rate3").textContent = rates.engaged_rate + "%";
+          document.getElementById("rate4").textContent = rates.deal_closed_rate + "%";
+          document.getElementById("rate5").textContent = rates.purchased_rate + "%";
+          
+          // Render funnel chart
+          if (funnelCtx && stages.leads_received > 0) {
+            const labels = ["Leads Received", "Contacted", "Qualified", "Engaged", "Deal Closed", "Purchased"];
+            const values = [
+              stages.leads_received,
+              stages.contacted,
+              stages.qualified,
+              stages.engaged,
+              stages.deal_closed,
+              stages.purchased || 0
+            ];
+            
+            // Create funnel effect by calculating widths
+            const maxValue = Math.max(...values, 1);
+            
+            if (funnelChartInstance) {
+              funnelChartInstance.destroy();
+            }
+            
+            funnelChartInstance = new Chart(funnelCtx, {
+              type: "bar",
+              data: {
+                labels: labels,
+                datasets: [
+                  {
+                    label: "Leads Count",
+                    data: values,
+                    backgroundColor: [
+                      "rgba(13, 124, 102, 0.8)",
+                      "rgba(13, 124, 102, 0.75)",
+                      "rgba(13, 124, 102, 0.65)",
+                      "rgba(13, 124, 102, 0.55)",
+                      "rgba(13, 124, 102, 0.45)",
+                      "rgba(13, 124, 102, 0.35)"
+                    ],
+                    borderColor: "rgba(13, 124, 102, 1)",
+                    borderWidth: 2,
+                    borderRadius: 8
+                  }
+                ]
+              },
+              options: {
+                indexAxis: "y",
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    display: false
+                  },
+                  tooltip: {
+                    enabled: true,
+                    callbacks: {
+                      label: function(context) {
+                        return "Count: " + context.parsed.x;
+                      }
+                    }
+                  }
+                },
+                scales: {
+                  x: {
+                    beginAtZero: true,
+                    max: maxValue * 1.1,
+                    grid: {
+                      color: "rgba(31, 44, 45, 0.08)"
+                    }
+                  },
+                  y: {
+                    grid: {
+                      display: false
+                    }
+                  }
+                }
+              }
+            });
+          }
+        })
+        .catch((error) => console.error("[FUNNEL_CHART] Error fetching metrics:", error));
     }
 
     function resetCabPanel() {
@@ -834,6 +1082,7 @@ def live_dashboard() -> HTMLResponse:
       leads.clear();
       cabVoiceState.clear();
       resetCabPanel();
+      fetchAndRenderFunnelChart();
     }
 
     function manualPayload() {
@@ -1382,12 +1631,14 @@ def live_dashboard() -> HTMLResponse:
 
           if (event.event === "run_completed") {
             statusText.textContent = `Completed ${event.payload.processed_leads} simulated leads.`;
+            fetchAndRenderFunnelChart();
           }
         }
       }
 
       startButton.disabled = false;
       submitManualButton.disabled = false;
+      fetchAndRenderFunnelChart();
     }
 
     async function startStream() {
