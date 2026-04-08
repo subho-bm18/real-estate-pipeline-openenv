@@ -71,6 +71,219 @@ market_data = {
     }
 }
 
+# Mock Property Database
+property_data = {
+    "res_prop_101": {
+        "property_id": "res_prop_101",
+        "title": "2BHK in Whitefield near metro",
+        "location": "Whitefield",
+        "segment": "residential",
+        "price": 9200000,
+        "details": {"property_type": "2BHK apartment", "bedrooms": 2, "builder_cab_available": True}
+    },
+    "res_prop_102": {
+        "property_id": "res_prop_102",
+        "title": "3BHK in Sarjapur",
+        "location": "Sarjapur",
+        "segment": "residential",
+        "price": 11800000,
+        "details": {"property_type": "3BHK apartment", "bedrooms": 3, "builder_cab_available": False}
+    },
+    "com_prop_301": {
+        "property_id": "com_prop_301",
+        "title": "Retail corner shell in CBD",
+        "location": "CBD Retail District",
+        "segment": "commercial",
+        "price": 315000,
+        "price_type": "lease",
+        "details": {"square_feet": 2800, "fit_for": "retail_food", "frontage": "high"}
+    },
+    "res_prop_201": {
+        "property_id": "res_prop_201",
+        "title": "Modern 4BHK Villa in Indiranagar",
+        "location": "Indiranagar",
+        "segment": "residential",
+        "price": 15000000,
+        "details": {"property_type": "4BHK Villa", "bedrooms": 4, "builder_cab_available": True}
+    },
+    "com_prop_401": {
+        "property_id": "com_prop_401",
+        "title": "Premium Office Space in MG Road",
+        "location": "MG Road",
+        "segment": "commercial",
+        "price": 250000,
+        "price_type": "lease",
+        "details": {"square_feet": 3500, "fit_for": "corporate", "frontage": "very_high"}
+    }
+}
+
+# Mock Builder Database with Locations
+builder_data = {
+    "Whitefield": [
+        {
+            "name": "Prestige Group - Prestige Primrose",
+            "location": "Whitefield, Bengaluru",
+            "coordinate": "12.9698° N, 77.7499° E",
+            "project_type": "Premium Residential",
+            "units": "250+ Apartments"
+        },
+        {
+            "name": "Lodha Group - Lodha Fiorenza",
+            "location": "Whitefield Tech Hub Area",
+            "coordinate": "12.9700° N, 77.7450° E",
+            "project_type": "Ultra-Luxury Residential",
+            "units": "180 Apartments"
+        },
+        {
+            "name": "Sobha Limited - Sobha Plaza",
+            "location": "Whitefield Central",
+            "coordinate": "12.9705° N, 77.7505° E",
+            "project_type": "Commercial/Residential Mix",
+            "units": "150 Units"
+        }
+    ],
+    "Marathahalli": [
+        {
+            "name": "Brigade Group - Brigade Lakefront",
+            "location": "Marathahalli Main Road",
+            "coordinate": "12.9540° N, 77.7260° E",
+            "project_type": "Premium Residential",
+            "units": "300+ Apartments"
+        },
+        {
+            "name": "Godrej Properties - Godrej Garden City",
+            "location": "Marathahalli South",
+            "coordinate": "12.9530° N, 77.7250° E",
+            "project_type": "Gated Community",
+            "units": "500+ Villas & Apartments"
+        },
+        {
+            "name": "Century Real Estate - Century Urban Heights",
+            "location": "Marathahalli Outer Ring Road",
+            "coordinate": "12.9520° N, 77.7270° E",
+            "project_type": "Mid-Range Residential",
+            "units": "200 Apartments"
+        }
+    ],
+    "Sarjapur": [
+        {
+            "name": "Sattva Group - Sattva The Marvella",
+            "location": "Sarjapur Road Tech Corridor",
+            "coordinate": "12.8395° N, 77.7450° E",
+            "project_type": "Emerging Luxury Residential",
+            "units": "400+ Apartments"
+        },
+        {
+            "name": "Ashton Global - Ashton Greens",
+            "location": "Sarjapur Main",
+            "coordinate": "12.8390° N, 77.7455° E",
+            "project_type": "Green Living Community",
+            "units": "280 Villas"
+        },
+        {
+            "name": "Shriram Group - Shriram Summitt",
+            "location": "Sarjapur Bangalore Development",
+            "coordinate": "12.8400° N, 77.7460° E",
+            "project_type": "Affordable Luxury",
+            "units": "350 Apartments"
+        }
+    ],
+    "Indiranagar": [
+        {
+            "name": "Mahindra Lifespaces - Mahindra Luminare",
+            "location": "Indiranagar Premium Area",
+            "coordinate": "13.0008° N, 77.6411° E",
+            "project_type": "Ultra-Premium Residential",
+            "units": "200 Villas"
+        },
+        {
+            "name": "DLF Limited - DLF The Crest",
+            "location": "Indiranagar Central",
+            "coordinate": "13.0010° N, 77.6415° E",
+            "project_type": "Luxury Apartments",
+            "units": "180 Units"
+        },
+        {
+            "name": "Tata Housing - Tata Primanti",
+            "location": "Indiranagar East",
+            "coordinate": "13.0015° N, 77.6420° E",
+            "project_type": "Premium Gated Community",
+            "units": "250 Apartments"
+        }
+    ],
+    "Koramangala": [
+        {
+            "name": "Puravankara - Purva Valkyr",
+            "location": "Koramangala 1st Block",
+            "coordinate": "12.9352° N, 77.6245° E",
+            "project_type": "Boutique Luxury",
+            "units": "120 Apartments"
+        },
+        {
+            "name": "Bengaluru Heritage - Forte",
+            "location": "Koramangala Central",
+            "coordinate": "12.9350° N, 77.6250° E",
+            "project_type": "Commercial/Premium Residential",
+            "units": "100 Units"
+        },
+        {
+            "name": "Provident Housing - Provident Luxe",
+            "location": "Koramangala Lifestyle Zone",
+            "coordinate": "12.9355° N, 77.6240° E",
+            "project_type": "Ultra-Luxury Residential",
+            "units": "150 Apartments"
+        }
+    ],
+    "HSR Layout": [
+        {
+            "name": "Merlin Group - Merlin Skycity",
+            "location": "HSR Layout Landmark",
+            "coordinate": "12.9272° N, 77.6345° E",
+            "project_type": "Gated Premium Residential",
+            "units": "280 Apartments"
+        },
+        {
+            "name": "Casagrand - Casagrand Utopia",
+            "location": "HSR Layout Extension",
+            "coordinate": "12.9270° N, 77.6350° E",
+            "project_type": "Mid-Premium Residential",
+            "units": "200 Apartments"
+        }
+    ],
+    "MG Road": [
+        {
+            "name": "Embassy Group - Embassy MG Road Plaza",
+            "location": "MG Road Central Business District",
+            "coordinate": "13.0004° N, 77.5939° E",
+            "project_type": "Commercial/Office Spaces",
+            "units": "500+ Sq.ft Commercial"
+        },
+        {
+            "name": "K Raheja Corp - Raheja Residency",
+            "location": "MG Road Premium Area",
+            "coordinate": "13.0006° N, 77.5940° E",
+            "project_type": "Corporate Housing",
+            "units": "120 Premium Apartments"
+        }
+    ],
+    "CBD Retail District": [
+        {
+            "name": "Pillar Group - Pillar Square",
+            "location": "CBD Central",
+            "coordinate": "13.0027° N, 77.5921° E",
+            "project_type": "Commercial/Retail Premium",
+            "units": "800+ Sq.ft Retail"
+        },
+        {
+            "name": "Nexus Malls - Nexus Central",
+            "location": "CBD Main Zone",
+            "coordinate": "13.0025° N, 77.5925° E",
+            "project_type": "Premium Retail/Commercial",
+            "units": "1000+ Sq.ft Commercial"
+        }
+    ]
+}
+
 # Distance data (in km) between locations
 distance_matrix = {
     "Whitefield": {"Marathahalli": 8.5, "Sarjapur": 12, "Indiranagar": 7, "Koramangala": 9.5, "HSR Layout": 11, "MG Road": 10, "CBD Retail District": 14},
@@ -207,6 +420,73 @@ def market_analysis(request: dict | None = None) -> dict[str, object]:
         },
         "comparable_locations": comparable_locations
     }
+
+
+@app.get("/properties/{property_id}")
+def get_property_details(property_id: str) -> dict[str, object]:
+    """Returns details for a specific property with builder info and market insights"""
+    prop = property_data.get(property_id, {})
+    if not prop:
+        return {"error": "Property not found", "property_id": property_id}
+    
+    # Get builder info for this property's location
+    location = prop.get("location")
+    builder_info = get_builder_info_for_location(location) if location else None
+    
+    # Calculate price per sqft if applicable
+    price_per_sqft = None
+    details = prop.get("details", {})
+    if details.get("square_feet") and prop.get("price"):
+        price_per_sqft = round(prop["price"] / details["square_feet"], 0)
+    
+    return {
+        **prop,
+        "builder_info": builder_info,
+        "price_per_sqft": price_per_sqft,
+        "market_rate": market_data.get(location, {}).get(prop.get("segment"), {}).get("avg_price_per_sqft")
+    }
+
+@app.get("/builders/by-location/{location}")
+def get_builders_by_location(location: str) -> dict[str, object]:
+    """Returns list of builders in a specific location"""
+    builders = builder_data.get(location, [])
+    return {
+        "location": location,
+        "builder_count": len(builders),
+        "builders": builders
+    }
+
+
+@app.get("/builders/search")
+def search_builders(location: str = None, project_type: str = None) -> dict[str, object]:
+    """Search builders by location and/or project type"""
+    results = []
+    
+    for loc, builders in builder_data.items():
+        if location and location.lower() not in loc.lower():
+            continue
+        
+        for builder in builders:
+            if project_type and project_type.lower() not in builder["project_type"].lower():
+                continue
+            results.append({
+                "location": loc,
+                **builder
+            })
+    
+    return {
+        "search_criteria": {"location": location, "project_type": project_type},
+        "results_count": len(results),
+        "results": results
+    }
+
+
+def get_builder_info_for_location(location: str) -> dict | None:
+    """Helper function to get primary builder information for a location"""
+    builders = builder_data.get(location, [])
+    if builders:
+        return builders[0]  # Return first/primary builder
+    return None
 
 
 @app.get("/calls/latest")
@@ -658,6 +938,75 @@ def live_dashboard() -> HTMLResponse:
       font-size: 0.92rem;
       min-height: 22px;
     }
+    .fallback-text-panel {
+      border: 2px solid var(--accent);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 18px;
+      background: linear-gradient(135deg, rgba(13, 124, 102, 0.08) 0%, rgba(210, 180, 222, 0.08) 100%);
+      box-shadow: 0 4px 12px rgba(13, 124, 102, 0.1);
+    }
+    .fallback-text-panel strong {
+      color: var(--accent);
+      display: block;
+      margin-bottom: 8px;
+    }
+    .fallback-question {
+      color: var(--ink);
+      font-size: 0.95rem;
+      margin-bottom: 12px;
+      font-weight: 600;
+      padding: 8px 0;
+    }
+    .fallback-input-group {
+      display: grid;
+      grid-template-columns: 1fr 120px;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .fallback-input-group input {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      background: white;
+      color: var(--ink);
+    }
+    .fallback-input-group input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(13, 124, 102, 0.1);
+    }
+    .fallback-input-group button {
+      padding: 10px 12px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border-radius: 8px;
+      border: none;
+    }
+    #fallbackSubmitButton {
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+    }
+    #fallbackSubmitButton:hover {
+      background: #0a9d80;
+    }
+    #fallbackSkipButton {
+      grid-column: 2;
+      background: #ccc;
+      color: #333;
+      font-weight: 500;
+    }
+    #fallbackSkipButton:hover {
+      background: #bbb;
+    }
+    .fallback-status {
+      font-size: 0.85rem;
+      color: var(--muted);
+      padding: 6px 0;
+      min-height: 18px;
+    }
     .segment-group.hidden {
       display: none;
     }
@@ -881,6 +1230,101 @@ def live_dashboard() -> HTMLResponse:
       h1 { max-width: none; }
       .form-grid { grid-template-columns: 1fr; }
     }
+    .builder-search-panel {
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      background: rgba(245, 245, 250, 0.9);
+      margin-bottom: 18px;
+    }
+    .builder-results {
+      margin-top: 16px;
+      display: grid;
+      gap: 12px;
+    }
+    .builder-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+    .builder-card h3 {
+      margin: 0 0 8px 0;
+      font-size: 1rem;
+      color: var(--ink);
+    }
+    .builder-card p {
+      margin: 4px 0;
+      font-size: 0.92rem;
+      color: var(--medium-ink);
+    }
+    .builder-info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+      font-size: 0.88rem;
+    }
+    .builder-info-item {
+      padding: 6px 8px;
+      background: rgba(13, 124, 102, 0.06);
+      border-radius: 8px;
+      border-left: 3px solid var(--accent);
+    }
+    .builder-info-label {
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .builder-info-value {
+      color: var(--ink);
+      font-weight: 500;
+    }
+    .builder-empty-state {
+      text-align: center;
+      padding: 24px 16px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .property-recommendation {
+      background: linear-gradient(135deg, rgba(13, 124, 102, 0.08) 0%, rgba(210, 180, 222, 0.06) 100%);
+      border: 1px solid rgba(13, 124, 102, 0.2);
+      border-radius: 12px;
+      padding: 12px;
+      margin: 10px 0;
+    }
+    .property-header {
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 10px;
+      font-size: 0.95rem;
+    }
+    .property-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .property-item {
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 8px;
+      border-left: 3px solid var(--accent);
+    }
+    .property-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .property-value {
+      font-size: 0.92rem;
+      color: var(--ink);
+      font-weight: 600;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -981,6 +1425,16 @@ def live_dashboard() -> HTMLResponse:
             <button id="playLatestCallButton" class="secondary">Play Latest Call</button>
           </div>
           <div class="voice-log" id="voiceLog">Voice assistant idle.</div>
+        </div>
+        <div id="fallbackTextInputPanel" class="fallback-text-panel" style="display: none;">
+          <div><strong>Text Input Fallback</strong></div>
+          <div id="fallbackQuestionText" class="fallback-question"></div>
+          <div class="fallback-input-group">
+            <input id="fallbackTextInput" type="text" placeholder="Type your answer here..." />
+            <button id="fallbackSubmitButton" class="voice">Submit</button>
+            <button id="fallbackSkipButton" class="secondary" style="display: none;">Skip (if optional)</button>
+          </div>
+          <div id="fallbackStatus" class="fallback-status"></div>
         </div>
         <div class="form-grid">
           <label>
@@ -1095,6 +1549,39 @@ def live_dashboard() -> HTMLResponse:
           </div>
           <div class="cab-message" id="cabMessage">Run a residential lead to see the cab operations flow.</div>
         </div>
+        <h2>Builder Search</h2>
+        <div class="builder-search-panel">
+          <div class="sub">Search and explore builders/projects available in your preferred location.</div>
+          <div class="form-grid" style="margin-top: 12px;">
+            <label>
+              Search Location
+              <select id="builderSearchLocation">
+                <option value="">Select a location...</option>
+                <option value="Whitefield">Whitefield - Tech Hub</option>
+                <option value="Marathahalli">Marathahalli - Popular</option>
+                <option value="Sarjapur">Sarjapur - Emerging</option>
+                <option value="Indiranagar">Indiranagar - Premium</option>
+                <option value="Koramangala">Koramangala - Luxury</option>
+                <option value="HSR Layout">HSR Layout - Premium</option>
+                <option value="MG Road">MG Road - Ultra-Premium</option>
+                <option value="CBD Retail District">CBD Retail District - Commercial Hub</option>
+              </select>
+            </label>
+            <label>
+              Project Type (Optional)
+              <select id="builderSearchType">
+                <option value="">All types</option>
+                <option value="Residential">Residential</option>
+                <option value="Commercial">Commercial</option>
+                <option value="Mix">Mix</option>
+              </select>
+            </label>
+          </div>
+          <div class="form-actions">
+            <button id="searchBuildersButton" class="voice">Search Builders</button>
+          </div>
+          <div id="builderSearchResults" class="builder-results"></div>
+        </div>
         <h2>Lead Outcomes</h2>
         <div class="lead-list" id="leadList"></div>
       </section>
@@ -1119,6 +1606,12 @@ def live_dashboard() -> HTMLResponse:
     const dictateInquiryButton = document.getElementById("dictateInquiryButton");
     const playLatestCallButton = document.getElementById("playLatestCallButton");
     const voiceLog = document.getElementById("voiceLog");
+    const fallbackTextInputPanel = document.getElementById("fallbackTextInputPanel");
+    const fallbackQuestionText = document.getElementById("fallbackQuestionText");
+    const fallbackTextInput = document.getElementById("fallbackTextInput");
+    const fallbackSubmitButton = document.getElementById("fallbackSubmitButton");
+    const fallbackSkipButton = document.getElementById("fallbackSkipButton");
+    const fallbackStatus = document.getElementById("fallbackStatus");
     const leads = new Map();
     const cabVoiceState = new Map();
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1145,6 +1638,60 @@ def live_dashboard() -> HTMLResponse:
         card.id = `lead-${leadId}`;
         leadList.prepend(card);
       }
+      
+      // Build property recommendation section
+      let propertyHTML = "";
+      if (lead.property_details) {
+        const prop = lead.property_details;
+        const builder = prop.builder_info;
+        const marketRate = prop.market_rate;
+        const pricePerSqft = prop.price_per_sqft;
+        
+        propertyHTML = `
+          <div class="property-recommendation">
+            <div class="property-header">✓ Recommended Property Details</div>
+            <div class="property-grid">
+              <div class="property-item">
+                <div class="property-label">Property</div>
+                <div class="property-value">${prop.title}</div>
+              </div>
+              <div class="property-item">
+                <div class="property-label">Location</div>
+                <div class="property-value">${prop.location}</div>
+              </div>
+              ${builder ? `
+              <div class="property-item">
+                <div class="property-label">Builder</div>
+                <div class="property-value">${builder.name}</div>
+              </div>
+              ` : ""}
+              <div class="property-item">
+                <div class="property-label">Price</div>
+                <div class="property-value">₹${(prop.price / 100000).toFixed(1)}L</div>
+              </div>
+              ${pricePerSqft ? `
+              <div class="property-item">
+                <div class="property-label">Rate/SqFt</div>
+                <div class="property-value">₹${pricePerSqft}</div>
+              </div>
+              ` : ""}
+              ${marketRate ? `
+              <div class="property-item">
+                <div class="property-label">Market Rate</div>
+                <div class="property-value">₹${marketRate}</div>
+              </div>
+              ` : ""}
+              ${lead.distance_to_property ? `
+              <div class="property-item">
+                <div class="property-label">Distance</div>
+                <div class="property-value">${lead.distance_to_property} km</div>
+              </div>
+              ` : ""}
+            </div>
+          </div>
+        `;
+      }
+      
       card.innerHTML = `
         <div class="lead-meta">
           <strong>${lead.customer_name || leadId}</strong>
@@ -1152,6 +1699,7 @@ def live_dashboard() -> HTMLResponse:
         </div>
         <div>${lead.inquiry || ""}</div>
         ${lead.last_contact_note ? `<div class="score">Call Note: ${lead.last_contact_note}</div>` : ""}
+        ${propertyHTML}
         <div class="score">Stage: ${lead.final_stage || lead.stage || "receiving"} | Score: ${lead.final_score ?? lead.grader_score ?? 0}</div>
       `;
     }
@@ -1499,10 +2047,34 @@ def live_dashboard() -> HTMLResponse:
           const providerName = payload.action?.cab_provider
             || lead.preferred_cab_provider
             || (document.getElementById("employmentType").value === "salaried" ? "Uber" : "Ola");
-          const bookedMessage = `Your cab has been booked with ${providerName}. Your booking reference is ${payload.cab_booking_reference}.`;
-          voiceLog.textContent = bookedMessage;
-          playBeep(760, 140);
-          speak(bookedMessage);
+          
+          // Fetch builder information if location is available
+          let bookedMessage = `Your cab has been booked with ${providerName}. Your booking reference is ${payload.cab_booking_reference}.`;
+          if (lead.location) {
+            fetch(`/builders/by-location/${encodeURIComponent(lead.location)}`)
+              .then(res => res.json())
+              .then(data => {
+                if (data.builders && data.builders.length > 0) {
+                  const builder = data.builders[0];
+                  setCabStatus("Builder/Project", builder.name, "good");
+                  setCabStatus("Project Location", builder.location, "good");
+                  bookedMessage = `Your cab to ${builder.name} in ${lead.location} has been booked with ${providerName}. Reference: ${payload.cab_booking_reference}.`;
+                  voiceLog.textContent = bookedMessage;
+                  playBeep(760, 140);
+                  speak(bookedMessage);
+                }
+              })
+              .catch(err => {
+                console.log("Builder info fetch error (non-critical):", err);
+                voiceLog.textContent = bookedMessage;
+                playBeep(760, 140);
+                speak(bookedMessage);
+              });
+          } else {
+            voiceLog.textContent = bookedMessage;
+            playBeep(760, 140);
+            speak(bookedMessage);
+          }
         }
       }
 
@@ -1927,60 +2499,156 @@ def live_dashboard() -> HTMLResponse:
       });
     }
 
+    async function getAnswerWithFallback(promptText, options = {}) {
+      const { allowSkip = false, emptyValue = "" } = options;
+      
+      try {
+        // First try voice input with retries
+        return await waitForSpeech(promptText, { retries: 1, timeoutMs: 4000, allowSkip, emptyValue });
+      } catch (voiceError) {
+        // Voice input failed, show text fallback
+        return new Promise((resolve) => {
+          // Show fallback panel
+          fallbackTextInputPanel.style.display = "block";
+          fallbackQuestionText.textContent = promptText;
+          fallbackTextInput.value = "";
+          fallbackStatus.textContent = "";
+          
+          // Show/hide skip button based on allowSkip
+          if (allowSkip) {
+            fallbackSkipButton.style.display = "block";
+          } else {
+            fallbackSkipButton.style.display = "none";
+          }
+          
+          // Log the fallback attempt
+          voiceLog.textContent = "Voice input not captured. Please type your answer in the text box below.";
+          fallbackStatus.textContent = "Waiting for text input...";
+          
+          // Focus on input
+          fallbackTextInput.focus();
+          
+          // Handle submit
+          const handleSubmit = () => {
+            const answer = fallbackTextInput.value.trim();
+            if (!answer && !allowSkip) {
+              fallbackStatus.textContent = "Please enter an answer or click Skip if optional.";
+              fallbackTextInput.focus();
+              return;
+            }
+            
+            // Clear event listeners
+            fallbackSubmitButton.removeEventListener("click", handleSubmit);
+            fallbackSkipButton.removeEventListener("click", handleSkip);
+            fallbackTextInput.removeEventListener("keypress", handleKeyPress);
+            
+            // Hide fallback panel
+            fallbackTextInputPanel.style.display = "none";
+            
+            // Log the captured answer
+            if (answer) {
+              voiceLog.textContent = `Captured: ${answer}`;
+              fallbackStatus.textContent = "";
+              resolve(answer);
+            } else {
+              voiceLog.textContent = "Skipped - marked as not required.";
+              fallbackStatus.textContent = "";
+              resolve(emptyValue);
+            }
+          };
+          
+          // Handle skip
+          const handleSkip = () => {
+            // Clear event listeners
+            fallbackSubmitButton.removeEventListener("click", handleSubmit);
+            fallbackSkipButton.removeEventListener("click", handleSkip);
+            fallbackTextInput.removeEventListener("keypress", handleKeyPress);
+            
+            // Hide fallback panel
+            fallbackTextInputPanel.style.display = "none";
+            
+            voiceLog.textContent = "Skipped - marked as not required.";
+            fallbackStatus.textContent = "";
+            resolve(emptyValue);
+          };
+          
+          // Handle Enter key
+          const handleKeyPress = (event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              handleSubmit();
+            }
+          };
+          
+          // Attach event listeners
+          fallbackSubmitButton.addEventListener("click", handleSubmit);
+          fallbackSkipButton.addEventListener("click", handleSkip);
+          fallbackTextInput.addEventListener("keypress", handleKeyPress);
+        });
+      }
+    }
+
     async function startVoiceIntake() {
       if (!recognitionSupported) {
         voiceLog.textContent = "Voice intake needs a browser with speech recognition support.";
         return;
       }
       if (recognitionBusy) {
-        voiceLog.textContent = "Voice assistant is already listening.";
+        voiceLog.textContent = "Voice assistant is already listening. Please wait for the current input to complete.";
         return;
       }
+      
+      // Prevent multiple concurrent intakes
+      if (window.voiceIntakeInProgress) {
+        voiceLog.textContent = "Voice intake is already in progress. Please wait...";
+        return;
+      }
+      window.voiceIntakeInProgress = true;
 
       try {
         stopSpeechPlayback();
-        const name = await waitForSpeech("Tell me the customer name.", { retries: 0, timeoutMs: 4000 });
+        const name = await getAnswerWithFallback("Tell me the customer name.");
         document.getElementById("customerName").value = name;
 
-        const employmentType = await waitForSpeech("Is the customer salaried, in business, or self-employed?", { retries: 0, timeoutMs: 4000 });
+        const employmentType = await getAnswerWithFallback("Is the customer salaried, in business, or self-employed?");
         document.getElementById("employmentType").value = parseEmploymentType(employmentType);
 
-        const segmentAnswer = await waitForSpeech("Is this a residential or commercial lead?", { retries: 0, timeoutMs: 3500 });
+        const segmentAnswer = await getAnswerWithFallback("Is this a residential or commercial lead?");
         segmentSelect.value = parseSegment(segmentAnswer);
         syncSegmentFields();
 
-        const location = await waitForSpeech("What is the preferred location?", { retries: 0, timeoutMs: 4000 });
+        const location = await getAnswerWithFallback("What is the preferred location?");
         document.getElementById("location").value = inferLocation(location);
 
-        const customerLocation = await waitForSpeech(
+        const customerLocation = await getAnswerWithFallback(
           "What is the customer's current pickup location? You can say skip or not required.",
-          { retries: 0, timeoutMs: 5000, allowSkip: true, emptyValue: "" }
+          { allowSkip: true, emptyValue: "" }
         );
         document.getElementById("customerLocation").value = heardSkipIntent(customerLocation) ? "" : inferLocation(customerLocation);
 
-        const budget = await waitForSpeech("What is the budget?", { retries: 0, timeoutMs: 4000 });
+        const budget = await getAnswerWithFallback("What is the budget?");
         document.getElementById("budget").value = parseBudgetValue(budget);
 
-        const timeline = await waitForSpeech("What is the timeline in days?", { retries: 0, timeoutMs: 3500 });
+        const timeline = await getAnswerWithFallback("What is the timeline in days?");
         document.getElementById("timelineDays").value = parseDaysValue(timeline);
         document.getElementById("profession").value = "";
         document.getElementById("totalExperienceYears").value = "";
 
         if (segmentSelect.value === "commercial") {
-          const businessType = await waitForSpeech("What type of business is this lead for?", { retries: 0, timeoutMs: 4000 });
+          const businessType = await getAnswerWithFallback("What type of business is this lead for?");
           document.getElementById("businessType").value = inferBusinessType(businessType);
 
-          const sqftMin = await waitForSpeech("What is the minimum square footage required?", { retries: 0, timeoutMs: 3500 });
+          const sqftMin = await getAnswerWithFallback("What is the minimum square footage required?");
           document.getElementById("squareFeetMin").value = parseSquareFeetValue(sqftMin);
 
-          const sqftMax = await waitForSpeech("What is the maximum square footage required?", { retries: 0, timeoutMs: 3500 });
+          const sqftMax = await getAnswerWithFallback("What is the maximum square footage required?");
           document.getElementById("squareFeetMax").value = parseSquareFeetValue(sqftMax);
         } else {
-          const propertyType = await waitForSpeech("What property type does the customer want?", { retries: 0, timeoutMs: 4000 });
+          const propertyType = await getAnswerWithFallback("What property type does the customer want?");
           document.getElementById("propertyType").value = inferResidentialPropertyType(propertyType);
         }
 
-        const inquiry = await waitForSpeech("Now describe the inquiry in one sentence.", { retries: 0, timeoutMs: 5000 });
+        const inquiry = await getAnswerWithFallback("Now describe the inquiry in one sentence.");
         document.getElementById("inquiry").value = cleanSpokenText(inquiry);
         applyVoiceIntelligence();
         document.getElementById("leadId").value = `voice_${segmentSelect.value}_${Date.now()}`;
@@ -1991,6 +2659,8 @@ def live_dashboard() -> HTMLResponse:
         await runManualLead();
       } catch (error) {
         voiceLog.textContent = `Voice intake stopped: ${error.message}`;
+      } finally {
+        window.voiceIntakeInProgress = false;
       }
     }
 
@@ -2005,7 +2675,7 @@ def live_dashboard() -> HTMLResponse:
       }
       try {
         stopSpeechPlayback();
-        const inquiry = await waitForSpeech("Please describe the customer inquiry.", { retries: 0, spokenPrompt: false, timeoutMs: 5000 });
+        const inquiry = await getAnswerWithFallback("Please describe the customer inquiry.");
         document.getElementById("inquiry").value = cleanSpokenText(inquiry);
         applyVoiceIntelligence();
         voiceLog.textContent = "Inquiry updated from voice input.";
@@ -2054,7 +2724,9 @@ def live_dashboard() -> HTMLResponse:
               customer_name: event.payload.customer_name,
               inquiry: event.payload.inquiry,
               stage: "received",
-              segment: event.payload.segment || document.getElementById("segment").value
+              segment: event.payload.segment || document.getElementById("segment").value,
+              location: document.getElementById("location").value,
+              customer_location: document.getElementById("customerLocation").value
             });
             renderLeadCard(event.lead_id);
           }
@@ -2076,8 +2748,43 @@ def live_dashboard() -> HTMLResponse:
             const lead = leads.get(event.lead_id) || {};
             lead.final_score = event.payload.final_score;
             lead.final_stage = event.payload.final_stage;
-            leads.set(event.lead_id, lead);
-            renderLeadCard(event.lead_id);
+            
+            // Fetch property details if recommendation exists
+            if (event.payload.recommended_property_id) {
+              fetch(`/properties/${event.payload.recommended_property_id}`)
+                .then(res => res.json())
+                .then(propData => {
+                  lead.property_details = propData;
+                  lead.recommended_property_id = event.payload.recommended_property_id;
+                  
+                  // Calculate distance from customer location if available
+                  if (lead.customer_location && lead.location) {
+                    // Mock distance calculation (in real scenario, use distance matrix)
+                    const distanceMap = {
+                      "Marathahalli-Whitefield": 8.2,
+                      "Marathahalli-Sarjapur": 12.5,
+                      "Marathahalli-Indiranagar": 6.3,
+                      "Marathahalli-Koramangala": 7.1,
+                      "Marathahalli-HSR Layout": 8.9,
+                      "Marathahalli-MG Road": 9.2,
+                      "Marathahalli-CBD Retail District": 10.1
+                    };
+                    const key = `${lead.customer_location}-${lead.location}`;
+                    lead.distance_to_property = distanceMap[key] || 10;
+                  }
+                  
+                  leads.set(event.lead_id, lead);
+                  renderLeadCard(event.lead_id);
+                })
+                .catch(err => {
+                  console.log("Property details fetch error:", err);
+                  leads.set(event.lead_id, lead);
+                  renderLeadCard(event.lead_id);
+                });
+            } else {
+              leads.set(event.lead_id, lead);
+              renderLeadCard(event.lead_id);
+            }
           }
 
           if (event.event === "run_completed") {
@@ -2118,6 +2825,65 @@ def live_dashboard() -> HTMLResponse:
     startVoiceIntakeButton.addEventListener("click", startVoiceIntake);
     dictateInquiryButton.addEventListener("click", dictateInquiry);
     playLatestCallButton.addEventListener("click", playLatestCall);
+    
+    // Builder search functionality
+    const searchBuildersButton = document.getElementById("searchBuildersButton");
+    const builderSearchLocation = document.getElementById("builderSearchLocation");
+    const builderSearchType = document.getElementById("builderSearchType");
+    const builderSearchResults = document.getElementById("builderSearchResults");
+    
+    async function searchBuilders() {
+      const location = builderSearchLocation.value;
+      const type = builderSearchType.value;
+      
+      if (!location) {
+        builderSearchResults.innerHTML = '<div class="builder-empty-state">Please select a location to search builders.</div>';
+        return;
+      }
+      
+      try {
+        let url = `/builders/search?location=${encodeURIComponent(location)}`;
+        if (type) {
+          url += `&project_type=${encodeURIComponent(type)}`;
+        }
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.results_count === 0) {
+          builderSearchResults.innerHTML = '<div class="builder-empty-state">No builders found for the selected criteria.</div>';
+          return;
+        }
+        
+        builderSearchResults.innerHTML = data.results.map(builder => `
+          <div class="builder-card">
+            <h3>${builder.name}</h3>
+            <p>${builder.project_type}</p>
+            <div class="builder-info-grid">
+              <div class="builder-info-item">
+                <div class="builder-info-label">Location</div>
+                <div class="builder-info-value">${builder.location}</div>
+              </div>
+              <div class="builder-info-item">
+                <div class="builder-info-label">Units</div>
+                <div class="builder-info-value">${builder.units}</div>
+              </div>
+              <div class="builder-info-item" style="grid-column: 1 / -1;">
+                <div class="builder-info-label">Coordinates</div>
+                <div class="builder-info-value">${builder.coordinate}</div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error("Builder search error:", error);
+        builderSearchResults.innerHTML = '<div class="builder-empty-state">Error fetching builders. Please try again.</div>';
+      }
+    }
+    
+    if (searchBuildersButton) {
+      searchBuildersButton.addEventListener("click", searchBuilders);
+    }
     
     // Market analysis listeners - update on any form field change
     const marketAnalysisInputs = [
