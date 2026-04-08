@@ -800,18 +800,33 @@ def live_dashboard() -> HTMLResponse:
     }
     .location-row {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 12px;
-      padding: 12px;
+      grid-template-columns: 150px 1.5fr 100px auto auto;
+      gap: 1rem;
+      padding: 1.2rem;
       margin-bottom: 10px;
-      background: rgba(255, 255, 255, 0.72);
+      background: linear-gradient(to right, rgba(13, 124, 102, 0.05), rgba(255, 255, 255, 0.5));
       border-radius: 12px;
+      border-left: 4px solid var(--accent);
       border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
       align-items: center;
+      transition: all 0.2s ease;
+    }
+    .location-row:hover {
+      background: linear-gradient(to right, rgba(13, 124, 102, 0.1), rgba(255, 255, 255, 0.6));
+      box-shadow: 0 2px 8px rgba(13, 124, 102, 0.1);
     }
     .location-name {
       font-weight: 700;
       color: var(--ink);
+      min-width: 140px;
+    }
+    .location-segment-info {
+      color: var(--medium-ink);
+      font-size: 0.95rem;
+    }
+    .location-segment-info strong {
+      color: var(--accent);
     }
     .location-rate {
       color: var(--accent);
@@ -845,6 +860,19 @@ def live_dashboard() -> HTMLResponse:
     .demand-low {
       background: #9e9e9e;
       color: white;
+    }
+    .location-affordability {
+      color: var(--medium-ink);
+      font-size: 0.9rem;
+      white-space: nowrap;
+      text-align: right;
+    }
+    .location-demand {
+      font-weight: 500;
+      text-align: center;
+      padding: 4px 8px !important;
+      border-radius: 4px !important;
+      font-size: 0.75rem !important;
     }
     @media (max-width: 900px) {
       .grid { grid-template-columns: 1fr; }
@@ -902,7 +930,10 @@ def live_dashboard() -> HTMLResponse:
     </div>
     <div class="market-analysis-grid">
       <div class="chart-section">
-        <h2>Market Analysis & Comparable Locations</h2>
+        <h2><span id="analysisLocationLabel">Whitefield</span> Market Analysis & Comparable Locations</h2>
+        <div style="color: var(--medium-ink); font-size: 0.85rem; margin-bottom: 12px;">
+          <span id="analysisSegmentLabel">Residential</span> segment pricing
+        </div>
         <div class="market-chart-container">
           <canvas id="marketChart"></canvas>
         </div>
@@ -931,7 +962,11 @@ def live_dashboard() -> HTMLResponse:
       </div>
     </div>
     <div class="comparable-locations">
-      <h2>Comparable Locations in Your Segment</h2>
+      <h2>Comparable Locations</h2>
+      <div style="color: var(--medium-ink); font-size: 0.9rem; margin-bottom: 1rem;">
+        <span id="segmentLabel">Residential</span> properties | 
+        <span>Sorted by distance from <strong id="customerLocationLabel">Marathahalli</strong></span>
+      </div>
       <div id="comparableLocationsList"></div>
     </div>
     <div class="grid">
@@ -971,17 +1006,35 @@ def live_dashboard() -> HTMLResponse:
           <label>
             Segment
             <select id="segment">
-              <option value="residential" selected>residential</option>
-              <option value="commercial">commercial</option>
+              <option value="residential" selected>Residential</option>
+              <option value="commercial">Commercial</option>
             </select>
           </label>
           <label>
-            Location
-            <input id="location" value="Whitefield" />
+            Property Location
+            <select id="location">
+              <option value="Whitefield" selected>Whitefield - Tech Hub</option>
+              <option value="Marathahalli">Marathahalli - Popular</option>
+              <option value="Sarjapur">Sarjapur - Emerging</option>
+              <option value="Indiranagar">Indiranagar - Premium</option>
+              <option value="Koramangala">Koramangala - Luxury</option>
+              <option value="HSR Layout">HSR Layout - Premium</option>
+              <option value="MG Road">MG Road - Ultra-Premium</option>
+              <option value="CBD Retail District">CBD Retail District - Commercial Hub</option>
+            </select>
           </label>
           <label>
-            Customer Current Location
-            <input id="customerLocation" value="Marathahalli" />
+            Your Current Location
+            <select id="customerLocation">
+              <option value="Marathahalli" selected>Marathahalli - Popular</option>
+              <option value="Whitefield">Whitefield - Tech Hub</option>
+              <option value="Sarjapur">Sarjapur - Emerging</option>
+              <option value="Indiranagar">Indiranagar - Premium</option>
+              <option value="Koramangala">Koramangala - Luxury</option>
+              <option value="HSR Layout">HSR Layout - Premium</option>
+              <option value="MG Road">MG Road - Ultra-Premium</option>
+              <option value="CBD Retail District">CBD Retail District - Commercial Hub</option>
+            </select>
           </label>
           <label>
             Budget
@@ -1225,6 +1278,12 @@ def live_dashboard() -> HTMLResponse:
         .then((data) => {
           console.log("[MARKET_ANALYSIS] Data received:", data);
           
+          // Update segment and location labels
+          document.getElementById("segmentLabel").textContent = data.segment.charAt(0).toUpperCase() + data.segment.slice(1);
+          document.getElementById("customerLocationLabel").textContent = data.customer_location;
+          document.getElementById("analysisLocationLabel").textContent = data.location;
+          document.getElementById("analysisSegmentLabel").textContent = data.segment.charAt(0).toUpperCase() + data.segment.slice(1);
+          
           // Update key metrics
           document.getElementById("distanceValue").textContent = data.distance_km.toFixed(1);
           document.getElementById("marketRateValue").textContent = "₹" + data.market_rate.avg_price_per_sqft.toLocaleString();
@@ -1312,15 +1371,39 @@ def live_dashboard() -> HTMLResponse:
             });
           }
           
-          // Render comparable locations list
-          const listHtml = Object.entries(data.comparable_locations)
+          // Render comparable locations list sorted by distance
+          const sortedLocations = Object.entries(data.comparable_locations)
+            .sort(([,a], [,b]) => a.distance_km - b.distance_km);
+          
+          const listHtml = sortedLocations
             .map(([loc, info]) => {
-              const demandClass = `demand-${info.demand.toLowerCase().replace(/_/g, "_")}`;
+              const demandColor = {
+                'very_high': '#fdd835',
+                'high': '#4caf50',
+                'medium': '#2196f3',
+                'low': '#9e9e9e'
+              }[info.demand.toLowerCase()] || '#9e9e9e';
+              
+              const affordability = data.budget_analysis.max_affordable_area_sqft 
+                ? ((data.budget_analysis.max_affordable_area_sqft * info.avg_price_per_sqft) / data.budget_analysis.budget * 100).toFixed(0)
+                : null;
+              
+              const affordabilityText = affordability 
+                ? affordability + '% of budget'  
+                : 'Budget: N/A';
+              
               return `
-                <div class="location-row">
+                <div class="location-row" style="border-left: 4px solid ${demandColor};">
                   <div class="location-name">${loc}</div>
-                  <div class="location-rate">₹${info.avg_price_per_sqft.toLocaleString()}/sqft</div>
-                  <div class="location-distance">${info.distance_km} km away</div>
+                  <div class="location-segment-info">
+                    <strong>${data.segment.charAt(0).toUpperCase() + data.segment.slice(1)}</strong> | 
+                    ₹${info.avg_price_per_sqft.toLocaleString()}/sqft
+                  </div>
+                  <div class="location-distance">${info.distance_km} km</div>
+                  <div class="location-affordability">${affordabilityText}</div>
+                  <div class="location-demand" style="background: ${demandColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">
+                    ${info.demand.replace(/_/g, ' ').toUpperCase()}
+                  </div>
                 </div>
               `;
             })
