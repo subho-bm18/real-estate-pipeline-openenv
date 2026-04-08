@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
@@ -24,99 +23,6 @@ from real_estate_pipeline.tasks import load_task
 app = FastAPI(title="Real Estate Pipeline OpenEnv", version="0.1.0")
 env = RealEstatePipelineEnv()
 latest_call_cache: dict[str, object] = {}
-conversion_metrics: dict[str, dict[str, int]] = {
-    "residential": {
-        "total_leads": 0,
-        "contacted": 0,
-        "interested_in_visit": 0,
-        "appointment_scheduled": 0,
-        "deal_closed": 0,
-    },
-    "commercial": {
-        "total_leads": 0,
-        "contacted": 0,
-        "proposal_sent": 0,
-        "negotiation": 0,
-        "deal_closed": 0,
-    },
-}
-
-# Lead categorization for current stream
-lead_categorization: dict[str, list[dict[str, object]]] = {
-    "eligible_for_contact": [],
-    "scheduled_for_visit": [],
-    "cold_leads": [],
-    "qualification_pending": [],
-    "deal_closed": [],
-}
-
-# Market rate data structure - tracks property prices by location
-market_rates: dict[str, dict[str, list[dict[str, object]]]] = {
-    "Whitefield": {
-        "2bhk apartment": [
-            {"price": 9200000, "timestamp": datetime.now(timezone.utc).isoformat()},
-        ],
-        "3bhk apartment": [
-            {"price": 10500000, "timestamp": datetime.now(timezone.utc).isoformat()},
-        ],
-        "4bhk apartment": [
-            {"price": 13200000, "timestamp": datetime.now(timezone.utc).isoformat()},
-        ],
-        "plot": [
-            {"price": 8000000, "timestamp": datetime.now(timezone.utc).isoformat()},
-        ],
-    },
-    "Sarjapur": {
-        "2bhk apartment": [
-            {"price": 8500000, "timestamp": datetime.now(timezone.utc).isoformat()},
-        ],
-        "3bhk apartment": [
-            {"price": 11800000, "timestamp": datetime.now(timezone.utc).isoformat()},
-        ],
-        "4bhk apartment": [
-            {"price": 14500000, "timestamp": datetime.now(timezone.utc).isoformat()},
-        ],
-        "plot": [
-            {"price": 7200000, "timestamp": datetime.now(timezone.utc).isoformat()},
-        ],
-    },
-    "Marathahalli": {
-        "2bhk apartment": [
-            {"price": 9000000, "timestamp": datetime.now(timezone.utc).isoformat()},
-        ],
-        "3bhk apartment": [
-            {"price": 10200000, "timestamp": datetime.now(timezone.utc).isoformat()},
-        ],
-        "4bhk apartment": [
-            {"price": 13000000, "timestamp": datetime.now(timezone.utc).isoformat()},
-        ],
-        "plot": [
-            {"price": 7800000, "timestamp": datetime.now(timezone.utc).isoformat()},
-        ],
-    },
-    "Indiranagar": {
-        "2bhk apartment": [
-            {"price": 10200000, "timestamp": datetime.now(timezone.utc).isoformat()},
-        ],
-        "3bhk apartment": [
-            {"price": 12300000, "timestamp": datetime.now(timezone.utc).isoformat()},
-        ],
-        "4bhk apartment": [
-            {"price": 15500000, "timestamp": datetime.now(timezone.utc).isoformat()},
-        ],
-        "plot": [
-            {"price": 9500000, "timestamp": datetime.now(timezone.utc).isoformat()},
-        ],
-    },
-    "CBD Retail District": {
-        "retail": [
-            {"price": 315000, "timestamp": datetime.now(timezone.utc).isoformat()},
-        ],
-        "office": [
-            {"price": 280000, "timestamp": datetime.now(timezone.utc).isoformat()},
-        ],
-    },
-}
 
 
 class ResetRequest(BaseModel):
@@ -310,113 +216,6 @@ def tasks() -> dict[str, object]:
     return {"tasks": entries}
 
 
-@app.get("/metrics/conversions")
-def get_conversion_metrics() -> dict[str, object]:
-    return {
-        "residential": conversion_metrics["residential"],
-        "commercial": conversion_metrics["commercial"],
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
-
-
-@app.post("/metrics/reset")
-def reset_conversion_metrics() -> dict[str, str]:
-    conversion_metrics["residential"] = {
-        "total_leads": 0,
-        "contacted": 0,
-        "interested_in_visit": 0,
-        "appointment_scheduled": 0,
-        "deal_closed": 0,
-    }
-    conversion_metrics["commercial"] = {
-        "total_leads": 0,
-        "contacted": 0,
-        "proposal_sent": 0,
-        "negotiation": 0,
-        "deal_closed": 0,
-    }
-    return {"status": "Conversion metrics reset"}
-
-
-@app.get("/lead-categorization")
-def get_lead_categorization() -> dict[str, object]:
-    """Get current lead categorization and statistics"""
-    return {
-        "eligible_for_contact": lead_categorization["eligible_for_contact"],
-        "scheduled_for_visit": lead_categorization["scheduled_for_visit"],
-        "cold_leads": lead_categorization["cold_leads"],
-        "qualification_pending": lead_categorization["qualification_pending"],
-        "deal_closed": lead_categorization["deal_closed"],
-        "summary": {
-            "total_leads": sum(len(v) for v in lead_categorization.values()),
-            "eligible_count": len(lead_categorization["eligible_for_contact"]),
-            "scheduled_count": len(lead_categorization["scheduled_for_visit"]),
-            "cold_count": len(lead_categorization["cold_leads"]),
-            "pending_count": len(lead_categorization["qualification_pending"]),
-            "closed_count": len(lead_categorization["deal_closed"]),
-        },
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
-
-
-@app.post("/lead-categorization/reset")
-def reset_lead_categorization() -> dict[str, str]:
-    """Reset lead categorization"""
-    lead_categorization["eligible_for_contact"].clear()
-    lead_categorization["scheduled_for_visit"].clear()
-    lead_categorization["cold_leads"].clear()
-    lead_categorization["qualification_pending"].clear()
-    lead_categorization["deal_closed"].clear()
-    return {"status": "Lead categorization reset"}
-
-
-@app.get("/market-rates")
-def get_market_rates(location: str | None = None, property_type: str | None = None) -> dict[str, object]:
-    """Get market rates by location and property type"""
-    result = {}
-    
-    for loc, property_types in market_rates.items():
-        if location and loc.lower() != location.lower():
-            continue
-        
-        result[loc] = {}
-        for ptype, prices in property_types.items():
-            if property_type and ptype.lower() != property_type.lower():
-                continue
-            
-            if prices:
-                avg_price = sum(p["price"] for p in prices) / len(prices)
-                min_price = min(p["price"] for p in prices)
-                max_price = max(p["price"] for p in prices)
-                
-                result[loc][ptype] = {
-                    "average": avg_price,
-                    "min": min_price,
-                    "max": max_price,
-                    "count": len(prices),
-                    "latest": prices[-1]["price"] if prices else 0,
-                }
-    
-    return {"market_rates": result, "timestamp": datetime.now(timezone.utc).isoformat()}
-
-
-@app.post("/market-rates/track")
-def track_market_rate(location: str, property_type: str, price: float) -> dict[str, str]:
-    """Track a new property price for market rate analytics"""
-    if location not in market_rates:
-        market_rates[location] = {}
-    
-    if property_type not in market_rates[location]:
-        market_rates[location][property_type] = []
-    
-    market_rates[location][property_type].append({
-        "price": price,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
-    
-    return {"status": "Market rate tracked", "location": location, "property_type": property_type, "price": price}
-
-
 @app.get("/simulate/live-example", response_model=LiveTrafficSimulationResponse)
 def simulate_live_example() -> LiveTrafficSimulationResponse:
     return simulate_live_traffic(DEFAULT_LIVE_LEADS)
@@ -445,7 +244,6 @@ def simulate_live_stream_custom(
 
 
 def _cache_call_stream(stream):
-    tracked_leads = set()
     for raw_event in stream:
         try:
             event = json.loads(raw_event)
@@ -454,114 +252,19 @@ def _cache_call_stream(stream):
             continue
 
         payload = event.get("payload", {})
-        lead_segment = payload.get("segment", "residential")
-        lead_id = event.get("lead_id")
-        
-        # Track conversion metrics
-        if event.get("event") == "lead_received":
-            conversion_metrics[lead_segment]["total_leads"] += 1
-            tracked_leads.add(lead_id)
-        
-        if event.get("event") == "lead_step":
-            # Track customer contact
-            if payload.get("customer_contacted") and lead_id not in tracked_leads:
-                conversion_metrics[lead_segment]["contacted"] += 1
-                tracked_leads.add(lead_id)
-            
-            # Track property recommendations for market rates
-            if payload.get("recommended_property_id") and f"{lead_id}_property" not in tracked_leads:
-                # Extract location and property_type from payload
-                location = payload.get("location")
-                property_type = payload.get("property_type") or payload.get("business_type")
-                property_price = payload.get("property_price")
-                
-                if location and property_type and property_price:
-                    if location not in market_rates:
-                        market_rates[location] = {}
-                    if property_type not in market_rates[location]:
-                        market_rates[location][property_type] = []
-                    
-                    market_rates[location][property_type].append({
-                        "price": property_price,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    })
-                    tracked_leads.add(f"{lead_id}_property")
-            
-            # Track residential stages
-            if lead_segment == "residential":
-                if payload.get("interested_in_visit") and f"{lead_id}_visit" not in tracked_leads:
-                    conversion_metrics[lead_segment]["interested_in_visit"] += 1
-                    tracked_leads.add(f"{lead_id}_visit")
-                if payload.get("appointment_type") and f"{lead_id}_appt" not in tracked_leads:
-                    conversion_metrics[lead_segment]["appointment_scheduled"] += 1
-                    tracked_leads.add(f"{lead_id}_appt")
-            
-            # Track commercial stages
-            if lead_segment == "commercial":
-                if payload.get("proposal_sent") and f"{lead_id}_prop" not in tracked_leads:
-                    conversion_metrics[lead_segment]["proposal_sent"] += 1
-                    tracked_leads.add(f"{lead_id}_prop")
-                if payload.get("stage") == "negotiation" and f"{lead_id}_neg" not in tracked_leads:
-                    conversion_metrics[lead_segment]["negotiation"] += 1
-                    tracked_leads.add(f"{lead_id}_neg")
-            
-            if payload.get("call_transcript"):
-                latest_call_cache.clear()
-                latest_call_cache.update(
-                    {
-                        "opportunity_id": event.get("lead_id"),
-                        "customer_name": payload.get("customer_name") or event.get("lead_id"),
-                        "available": True,
-                        "customer_contacted": True,
-                        "call_outcome": payload.get("call_outcome"),
-                        "last_contact_note": _last_customer_turn(payload.get("call_transcript", [])),
-                        "call_transcript": payload.get("call_transcript", []),
-                    }
-                )
-        
-        if event.get("event") == "lead_completed":
-            if payload.get("deal_closed") and f"{lead_id}_closed" not in tracked_leads:
-                conversion_metrics[lead_segment]["deal_closed"] += 1
-                tracked_leads.add(f"{lead_id}_closed")
-                # Remove from other categories
-                for category in lead_categorization:
-                    lead_categorization[category] = [l for l in lead_categorization[category] if l.get("lead_id") != lead_id]
-                # Categorize as dealt/closed
-                lead_obj = {
-                    "lead_id": lead_id,
-                    "customer_name": payload.get("customer_name") or lead_id,
-                    "property_type": payload.get("property_type") or payload.get("business_type") or "Unknown",
+        if event.get("event") == "lead_step" and payload.get("call_transcript"):
+            latest_call_cache.clear()
+            latest_call_cache.update(
+                {
+                    "opportunity_id": event.get("lead_id"),
+                    "customer_name": payload.get("customer_name") or event.get("lead_id"),
+                    "available": True,
+                    "customer_contacted": True,
+                    "call_outcome": payload.get("call_outcome"),
+                    "last_contact_note": _last_customer_turn(payload.get("call_transcript", [])),
+                    "call_transcript": payload.get("call_transcript", []),
                 }
-                lead_categorization["deal_closed"].append(lead_obj)
-            else:
-                # Categorize leads at completion
-                customer_name = payload.get("customer_name") or lead_id
-                final_stage = payload.get("final_stage", "")
-                missing_fields = payload.get("missing_fields")
-                property_type = payload.get("property_type") or payload.get("business_type") or "Unknown"
-                
-                lead_obj = {
-                    "lead_id": lead_id,
-                    "customer_name": customer_name,
-                    "property_type": property_type,
-                }
-                
-                # Remove from any previous category
-                for category in lead_categorization:
-                    lead_categorization[category] = [l for l in lead_categorization[category] if l.get("lead_id") != lead_id]
-                
-                # Assign to appropriate category
-                if missing_fields and len(missing_fields) > 0:
-                    lead_categorization["qualification_pending"].append(lead_obj)
-                elif final_stage in ["builder_appointment_scheduled", "landlord_meeting_scheduled"]:
-                    lead_categorization["scheduled_for_visit"].append(lead_obj)
-                elif final_stage in ["new", "receiving", "classified", "prioritized", "property_recommended"]:
-                    lead_categorization["eligible_for_contact"].append(lead_obj)
-                elif final_stage in ["move_to_nurture"]:
-                    lead_categorization["cold_leads"].append(lead_obj)
-                else:
-                    lead_categorization["qualification_pending"].append(lead_obj)
-        
+            )
         yield raw_event
 
 
@@ -826,153 +529,12 @@ def live_dashboard() -> HTMLResponse:
       font-size: 0.84rem;
       color: #263536;
     }
-    .conversion-chart-container {
-      position: relative;
-      height: 350px;
-      margin-bottom: 16px;
-    }
-    .conversion-chart-section {
-      display: flex;
-      flex-direction: column;
-      min-height: 400px;
-    }
-    .funnel-metrics {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-    .metric-box {
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 12px;
-      background: rgba(255, 255, 255, 0.9);
-      text-align: center;
-      font-size: 0.9rem;
-    }
-    .metric-box .value {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--accent);
-      margin: 4px 0;
-    }
-    .metric-box .label {
-      font-size: 0.85rem;
-      color: var(--muted);
-    }
-    .reset-metrics-btn {
-      padding: 8px 12px;
-      font-size: 0.85rem;
-      margin-top: auto;
-    }
-    .market-rate-chart-container {
-      position: relative;
-      height: 360px;
-      margin-bottom: 16px;
-    }
-    .market-rate-filter {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 12px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    .market-rate-filter select {
-      padding: 8px 12px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: white;
-      font-size: 0.9rem;
-    }
-    .market-info-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 10px;
-      margin-top: 12px;
-    }
-    .market-info-cell {
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 10px;
-      background: rgba(255, 255, 255, 0.9);
-      font-size: 0.85rem;
-      text-align: center;
-    }
-    .market-info-cell .loc {
-      font-weight: 700;
-      color: var(--accent);
-      font-size: 0.9rem;
-      margin-bottom: 6px;
-    }
-    .market-info-cell .ptype {
-      color: var(--muted);
-      font-size: 0.8rem;
-      margin-bottom: 4px;
-    }
-    .market-info-cell .price {
-      font-weight: 600;
-      color: var(--ink);
-    }
-    .lead-categorization-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 12px;
-      margin-top: 12px;
-    }
-    .lead-category-box {
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 14px;
-      background: rgba(255, 255, 255, 0.9);
-      text-align: center;
-      font-size: 0.9rem;
-    }
-    .lead-category-box.eligible {
-      border-left: 4px solid #0d7c66;
-      background: rgba(13, 124, 102, 0.05);
-    }
-    .lead-category-box.scheduled {
-      border-left: 4px solid #1f5aa0;
-      background: rgba(31, 90, 160, 0.05);
-    }
-    .lead-category-box.cold {
-      border-left: 4px solid #b76e2b;
-      background: rgba(183, 110, 43, 0.05);
-    }
-    .lead-category-box.pending {
-      border-left: 4px solid #8a7a1f;
-      background: rgba(138, 122, 31, 0.05);
-    }
-    .lead-category-box.closed {
-      border-left: 4px solid #1c7c54;
-      background: rgba(28, 124, 84, 0.05);
-    }
-    .lead-category-box .count {
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: var(--ink);
-      margin: 6px 0;
-    }
-    .lead-category-box .label {
-      font-size: 0.8rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    .lead-category-box .details {
-      font-size: 0.75rem;
-      color: var(--muted);
-      margin-top: 8px;
-      max-height: 60px;
-      overflow-y: auto;
-    }
     @media (max-width: 900px) {
       .grid { grid-template-columns: 1fr; }
       h1 { max-width: none; }
       .form-grid { grid-template-columns: 1fr; }
     }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div class="shell">
@@ -985,98 +547,18 @@ def live_dashboard() -> HTMLResponse:
       <button id="startButton">Start Stream</button>
       <div class="status" id="statusText">Ready to simulate inbound CRM traffic.</div>
     </div>
-    <div class="controls, .grid > section">
-      <div style="flex: 1;">
-        <div style="font-size: 0.95rem; color: var(--muted); margin-bottom: 8px;">Business Metrics</div>
-        <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
-          <select id="segmentFilter" style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: white;">
-            <option value="all">All Segments</option>
-            <option value="residential">Residential Only</option>
-            <option value="commercial">Commercial Only</option>
-          </select>
-          <button id="resetMetricsBtn" class="secondary" style="padding: 8px 12px; font-size: 0.9rem;">Reset Metrics</button>
-        </div>
-      </div>
-    </div>
-    <div style="border: 1px solid var(--border); background: var(--panel); backdrop-filter: blur(16px); border-radius: 24px; box-shadow: var(--shadow); padding: 18px; margin-bottom: 18px;">
-      <h2 style="margin-top: 0;">Lead Conversion Funnel</h2>
-      <div class="conversion-chart-container">
-        <canvas id="conversionChart"></canvas>
-      </div>
-      <div class="funnel-metrics" id="funnelMetrics"></div>
-    </div>
-    <div style="border: 1px solid var(--border); background: var(--panel); backdrop-filter: blur(16px); border-radius: 24px; box-shadow: var(--shadow); padding: 18px; margin-bottom: 18px;">
-      <h2 style="margin-top: 0; margin-bottom: 16px;">Lead Categorization & Qualification Status</h2>
-      <div class="lead-categorization-grid" id="leadCategorizationGrid">
-        <div class="lead-category-box eligible" style="border-left: 4px solid #4CAF50;">
-          <div class="category-label">Eligible for Contact</div>
-          <div class="category-count" id="count-eligible-for-contact">0</div>
-          <div class="category-details" id="details-eligible-for-contact"></div>
-        </div>
-        <div class="lead-category-box scheduled" style="border-left: 4px solid #2196F3;">
-          <div class="category-label">Scheduled for Visit</div>
-          <div class="category-count" id="count-scheduled-for-visit">0</div>
-          <div class="category-details" id="details-scheduled-for-visit"></div>
-        </div>
-        <div class="lead-category-box cold" style="border-left: 4px solid #795548;">
-          <div class="category-label">Cold Leads</div>
-          <div class="category-count" id="count-cold-leads">0</div>
-          <div class="category-details" id="details-cold-leads"></div>
-        </div>
-        <div class="lead-category-box pending" style="border-left: 4px solid #FFC107;">
-          <div class="category-label">Qualification Pending</div>
-          <div class="category-count" id="count-qualification-pending">0</div>
-          <div class="category-details" id="details-qualification-pending"></div>
-        </div>
-        <div class="lead-category-box closed" style="border-left: 4px solid #1B5E20;">
-          <div class="category-label">Deal Closed</div>
-          <div class="category-count" id="count-deal-closed">0</div>
-          <div class="category-details" id="details-deal-closed"></div>
-        </div>
-      </div>
-    </div>
-    <div style="border: 1px solid var(--border); background: var(--panel); backdrop-filter: blur(16px); border-radius: 24px; box-shadow: var(--shadow); padding: 18px; margin-bottom: 18px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <h2 style="margin: 0;">Market Rate Analysis</h2>
-        <span id="marketRateTitle" style="font-size: 0.95rem; color: var(--accent); font-weight: 600;">Analyzing: 2BHK apartment</span>
-      </div>
-      <div class="market-rate-filter">
-        <select id="marketLocationFilter" style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: white;">
-          <option value="all">All Locations</option>
-          <option value="Whitefield">Whitefield</option>
-          <option value="Sarjapur">Sarjapur</option>
-          <option value="Marathahalli">Marathahalli</option>
-          <option value="Indiranagar">Indiranagar</option>
-          <option value="CBD Retail District">CBD Retail District</option>
-        </select>
-        <span style="font-size: 0.9rem; color: var(--muted);">Show pricing trends by location</span>
-      </div>
-      <div class="market-rate-chart-container">
-        <canvas id="marketRateChart"></canvas>
-      </div>
-      <div class="market-info-grid" id="marketInfoGrid"></div>
-    </div>
     <div class="grid">
       <section>
-        <h2>Manual Lead Entry & Voice Intake</h2>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-          <div class="voice-panel">
-            <div><strong>Voice Assistant</strong></div>
-            <div class="sub">Use your microphone to capture a lead verbally. Best supported in Chromium-based browsers.</div>
-            <div class="form-actions" style="margin-top: 12px; margin-bottom: 0;">
-              <button id="startVoiceIntakeButton" class="voice">Start Voice Intake</button>
-              <button id="dictateInquiryButton" class="voice">Dictate Inquiry</button>
-              <button id="playLatestCallButton" class="secondary">Play Latest Call</button>
-            </div>
-            <div class="voice-log" id="voiceLog">Voice assistant idle.</div>
+        <h2>Manual Lead Entry</h2>
+        <div class="voice-panel">
+          <div><strong>Voice Assistant</strong></div>
+          <div class="sub">Use your microphone to capture a lead verbally or play back the latest simulated call flow. Best supported in Chromium-based browsers.</div>
+          <div class="form-actions" style="margin-top: 12px; margin-bottom: 0;">
+            <button id="startVoiceIntakeButton" class="voice">Start Voice Intake</button>
+            <button id="dictateInquiryButton" class="voice">Dictate Inquiry</button>
+            <button id="playLatestCallButton" class="secondary">Play Latest Call</button>
           </div>
-          <div style="border: 1px solid var(--border); border-radius: 12px; padding: 16px; background: var(--panel);">
-            <div style="margin-bottom: 8px;"><strong>Test Input Editor</strong> (Fallback when voice fails)</div>
-            <div class="sub" style="margin-bottom: 12px; font-size: 0.85rem;">Paste or type inquiry text directly (for testing when voice recognition unavailable)</div>
-            <textarea id="testInquiryInput" placeholder="E.g., Looking for a 3BHK apartment in Whitefield. Budget is 1 crore and need to move in 60 days." style="width: 100%; height: 120px; padding: 8px; border: 1px solid var(--border); border-radius: 8px; font-family: monospace; font-size: 0.9rem; resize: vertical;"></textarea>
-            <button id="submitTestInquiryButton" style="margin-top: 8px; padding: 8px 16px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">Use Test Input</button>
-            <div id="testInputLog" style="margin-top: 8px; font-size: 0.8rem; color: var(--muted); line-height: 1.4;"></div>
-          </div>
+          <div class="voice-log" id="voiceLog">Voice assistant idle.</div>
         </div>
         <div class="form-grid">
           <label>
@@ -1197,9 +679,6 @@ def live_dashboard() -> HTMLResponse:
     const dictateInquiryButton = document.getElementById("dictateInquiryButton");
     const playLatestCallButton = document.getElementById("playLatestCallButton");
     const voiceLog = document.getElementById("voiceLog");
-    const submitTestInquiryButton = document.getElementById("submitTestInquiryButton");
-    const testInquiryInput = document.getElementById("testInquiryInput");
-    const testInputLog = document.getElementById("testInputLog");
     const leads = new Map();
     const cabVoiceState = new Map();
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1207,19 +686,6 @@ def live_dashboard() -> HTMLResponse:
     const recognitionSupported = Boolean(SpeechRecognition);
     const playbackSupported = Boolean(window.speechSynthesis);
     let recognitionBusy = false;
-    
-    // Conversion metrics and chart
-    const segmentFilter = document.getElementById("segmentFilter");
-    const resetMetricsBtn = document.getElementById("resetMetricsBtn");
-    const funnelMetrics = document.getElementById("funnelMetrics");
-    let conversionChart = null;
-    
-    // Market rates chart
-    const marketLocationFilter = document.getElementById("marketLocationFilter");
-    const marketInfoGrid = document.getElementById("marketInfoGrid");
-    const propertyTypeInput = document.getElementById("propertyType");
-    const businessTypeInput = document.getElementById("businessType");
-    let marketRateChart = null;
 
     function renderLeadCard(leadId) {
       const lead = leads.get(leadId);
@@ -1237,7 +703,7 @@ def live_dashboard() -> HTMLResponse:
           <span>${leadId}</span>
         </div>
         <div>${lead.inquiry || ""}</div>
-        ${lead.last_contact_note ? "<div class='score'>Call Note: " + lead.last_contact_note + "</div>" : ""}
+        ${lead.last_contact_note ? `<div class="score">Call Note: ${lead.last_contact_note}</div>` : ""}
         <div class="score">Stage: ${lead.final_stage || lead.stage || "receiving"} | Score: ${lead.final_score ?? lead.grader_score ?? 0}</div>
       `;
     }
@@ -1245,77 +711,7 @@ def live_dashboard() -> HTMLResponse:
     function addEventRow(event) {
       const row = document.createElement("div");
       row.className = "event-row";
-      
-      // Map deal stages from event types
-      const stageEmojis = {
-        'send_proposal': '📧',
-        'customer_follow_up': '☎️',
-        'send_negotiation_offer': '🤝',
-        'send_payment_reminder': '💳',
-        'process_booking_payment': '💰',
-        'finalize_deal': '🎉',
-        'lead_received': '📌',
-        'lead_step': '🔄'
-      };
-      
-      const stageNames = {
-        'send_proposal': 'Proposal',
-        'customer_follow_up': 'Follow-up',
-        'send_negotiation_offer': 'Negotiation',
-        'send_payment_reminder': 'Payment Reminder',
-        'process_booking_payment': 'Payment Received',
-        'finalize_deal': 'Deal Closed',
-        'lead_received': 'Lead Captured',
-        'lead_step': 'Pipeline Step'
-      };
-      
-      const emoji = stageEmojis[event.event] || '📝';
-      const stageName = stageNames[event.event] || event.event;
-      const timestamp = new Date().toLocaleTimeString();
-      const leadId = event.lead_id || event.payload?.lead_id || 'Unknown';
-      const customerName = event.payload?.customer_name || 'N/A';
-      
-      // Extract key details based on event type
-      let details = '';
-      if (event.payload) {
-        if (event.payload.booking_amount) {
-          details += `Amount: ₹${(event.payload.booking_amount / 100000).toFixed(1)}L`;
-        } else if (event.payload.inquiry) {
-          details += `Inquiry: ${event.payload.inquiry.substring(0, 60)}...`;
-        }
-        if (event.payload.action_type) {
-          details += ` | Action: ${event.payload.action_type}`;
-        }
-        if (event.payload.negotiation_round !== undefined) {
-          details += ` | Round: ${event.payload.negotiation_round}`;
-        }
-        if (event.payload.follow_up_count !== undefined) {
-          details += ` | Attempt: ${event.payload.follow_up_count}`;
-        }
-      }
-      
-      // Create formatted event card (collapsible)
-      row.innerHTML = `
-        <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start;">
-          <div>
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-              <span style="font-size: 1.2em;">${emoji}</span>
-              <strong style="color: #fff;">${stageName}</strong>
-              <span style="font-size: 0.8em; color: rgba(255,255,255,0.6);">${timestamp}</span>
-            </div>
-            <div style="font-size: 0.85em; color: rgba(255,255,255,0.8); margin-left: 28px;">
-              <strong>Lead:</strong> ${customerName} (${leadId})
-              ${details ? "<br><strong>Details:</strong> " + details : ""}
-            </div>
-          </div>
-          <button style="padding: 4px 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: #fff; cursor: pointer; font-size: 0.8em;" onclick="this.parentElement.parentElement.classList.toggle('expanded');">Details</button>
-        </div>
-        <details style="margin-top: 8px; margin-left: 28px; font-size: 0.85em; color: rgba(255,255,255,0.7);">
-          <summary style="cursor: pointer; color: rgba(255,255,255,0.6);">Raw Event Data</summary>
-          <pre style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; overflow-x: auto; margin-top: 8px;">${JSON.stringify(event, null, 2)}</pre>
-        </details>
-      `;
-      
+      row.innerHTML = `<div class="event-tag">${event.event}</div><pre>${JSON.stringify(event, null, 2)}</pre>`;
       eventList.prepend(row);
     }
 
@@ -1934,180 +1330,75 @@ def live_dashboard() -> HTMLResponse:
       speak(script);
     }
 
-    async function submitTestInquiry() {
-      const testText = testInquiryInput.value.trim();
-      if (!testText) {
-        testInputLog.textContent = "❌ Please enter an inquiry text.";
-        return;
-      }
-      try {
-        testInputLog.textContent = "⏳ Processing test inquiry...";
-        document.getElementById("inquiry").value = cleanSpokenText(testText);
-        document.getElementById("leadId").value = `test_${Date.now()}`;
-        
-        // Try to infer some basic fields from text patterns
-        const textLower = testText.toLowerCase();
-        if (textLower.includes("commercial") || textLower.includes("office") || textLower.includes("space")) {
-          segmentSelect.value = "commercial";
-          syncSegmentFields();
-        } else {
-          segmentSelect.value = "residential";
-          syncSegmentFields();
-        }
-        
-        // Try to parse budget if mentioned (look for numbers followed by crore/lakh/lac)
-        const budgetMatch = testText.match(/(\d+)\s*(crore|lakh|lac)?/i);
-        if (budgetMatch) {
-          let amount = parseInt(budgetMatch[1]);
-          if (budgetMatch[2]) {
-            const unit = budgetMatch[2].toLowerCase();
-            if (unit === "crore") amount = amount * 10000000;
-            else if (unit === "lakh" || unit === "lac") amount = amount * 100000;
-          }
-          document.getElementById("budget").value = amount;
-        }
-        
-        // Try to parse timeline from text
-        const daysMatch = testText.match(/(\d+)\s*(?:day|week|month)/i);
-        if (daysMatch) {
-          let days = parseInt(daysMatch[1]);
-          const unit = daysMatch[0].toLowerCase();
-          if (unit.includes("week")) days = days * 7;
-          else if (unit.includes("month")) days = days * 30;
-          document.getElementById("timelineDays").value = Math.max(1, Math.min(365, days));
-        }
-        
-        applyVoiceIntelligence();
-        testInputLog.textContent = "✅ Test inquiry parsed successfully. Click submit to process the lead.";
-        setTimeout(() => {
-          testInputLog.textContent = "";
-          testInquiryInput.value = "";
-        }, 2000);
-        await runManualLead();
-      } catch (error) {
-        testInputLog.textContent = `❌ Error: ${error.message}`;
-      }
-    }
-
     async function consumeStream(response) {
-      console.log("[STREAM_START] Starting stream consumption");
       startButton.disabled = true;
       submitManualButton.disabled = true;
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let eventCount = 0;
 
-      try {
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) {
-            console.log("[STREAM_DONE] Stream reading complete after " + eventCount + " events");
-            break;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\\n");
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const event = JSON.parse(line);
+          addEventRow(event);
+
+          if (event.event === "lead_received") {
+            leads.set(event.lead_id, {
+              customer_name: event.payload.customer_name,
+              inquiry: event.payload.inquiry,
+              stage: "received",
+              segment: event.payload.segment || document.getElementById("segment").value
+            });
+            renderLeadCard(event.lead_id);
           }
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop();
 
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            try {
-              const event = JSON.parse(line);
-              eventCount++;
-              console.log("[EVENT_" + eventCount + "] " + event.event + " (Lead: " + (event.lead_id || "N/A") + ")");
-              addEventRow(event);
-
-              if (event.event === "lead_received") {
-                leads.set(event.lead_id, {
-                  customer_name: event.payload.customer_name,
-                  inquiry: event.payload.inquiry,
-                  stage: "received",
-                  segment: event.payload.segment || document.getElementById("segment").value
-                });
-                renderLeadCard(event.lead_id);
-              }
-
-              if (event.event === "lead_step") {
-                const lead = leads.get(event.lead_id) || {};
-                lead.grader_score = event.payload.grader_score;
-                lead.stage = event.payload.last_action_result || lead.stage;
-                if (event.payload.call_transcript && event.payload.call_transcript.length) {
-                  const customerTurns = event.payload.call_transcript.filter((turn) => turn.speaker === "customer");
-                  lead.last_contact_note = customerTurns.length ? customerTurns[customerTurns.length - 1].text : event.payload.call_outcome;
-                }
-                leads.set(event.lead_id, lead);
-                renderLeadCard(event.lead_id);
-                updateCabPanelFromPayload(event.payload, lead);
-              }
-
-              if (event.event === "lead_completed") {
-                const lead = leads.get(event.lead_id) || {};
-                lead.final_score = event.payload.final_score;
-                lead.final_stage = event.payload.final_stage;
-                leads.set(event.lead_id, lead);
-                renderLeadCard(event.lead_id);
-              }
-
-              if (event.event === "run_completed") {
-                statusText.textContent = "Completed " + event.payload.processed_leads + " simulated leads.";
-                console.log("[RUN_COMPLETE] Run completed with " + event.payload.processed_leads + " leads");
-              }
-            } catch (parseErr) {
-              console.error("[PARSE_ERROR] Failed to parse line:", line, parseErr);
+          if (event.event === "lead_step") {
+            const lead = leads.get(event.lead_id) || {};
+            lead.grader_score = event.payload.grader_score;
+            lead.stage = event.payload.last_action_result || lead.stage;
+            if (event.payload.call_transcript && event.payload.call_transcript.length) {
+              const customerTurns = event.payload.call_transcript.filter((turn) => turn.speaker === "customer");
+              lead.last_contact_note = customerTurns.length ? customerTurns[customerTurns.length - 1].text : event.payload.call_outcome;
             }
+            leads.set(event.lead_id, lead);
+            renderLeadCard(event.lead_id);
+            updateCabPanelFromPayload(event.payload, lead);
+          }
+
+          if (event.event === "lead_completed") {
+            const lead = leads.get(event.lead_id) || {};
+            lead.final_score = event.payload.final_score;
+            lead.final_stage = event.payload.final_stage;
+            leads.set(event.lead_id, lead);
+            renderLeadCard(event.lead_id);
+          }
+
+          if (event.event === "run_completed") {
+            statusText.textContent = `Completed ${event.payload.processed_leads} simulated leads.`;
           }
         }
-      } catch (streamErr) {
-        console.error("[STREAM_ERROR] Stream error:", streamErr);
-        statusText.textContent = "Stream error: " + streamErr.message;
       }
 
       startButton.disabled = false;
       submitManualButton.disabled = false;
-      console.log("[REFRESH] Refreshing charts...");
-      await fetchAndRenderConversionChart();
-      await fetchAndRenderLeadCategorization();
-      console.log("[REFRESH_DONE] Charts refreshed");
     }
 
     async function startStream() {
-      try {
-        console.log("[START] Start Stream clicked");
-        resetBoards();
-        statusText.textContent = "Streaming default CRM traffic...";
-        console.log("[RESET] Resetting metrics...");
-        // Reset backend metrics and categorization for new stream
-        let metricsRes = await fetch("/metrics/reset", { method: "POST" });
-        console.log("[METRICS] Metrics reset:", metricsRes.status);
-        
-        let categRes = await fetch("/lead-categorization/reset", { method: "POST" });
-        console.log("[CATEGORY] Categorization reset:", categRes.status);
-        
-        console.log("[FETCH] Fetching stream...");
-        const response = await fetch("/simulate/live/stream?delay_seconds=0.35");
-        console.log("[STREAM] Stream fetch status:", response.status);
-        
-        if (!response.ok) {
-          statusText.textContent = "Error: Stream failed with status " + response.status;
-          throw new Error("Stream failed: " + response.status);
-        }
-        
-        console.log("[CONSUME] Consuming stream...");
-        await consumeStream(response);
-        console.log("[SUCCESS] Stream completed successfully");
-      } catch (error) {
-        console.error("[ERROR] Error in startStream:", error);
-        statusText.textContent = "Error: " + error.message;
-        startButton.disabled = false;
-        submitManualButton.disabled = false;
-      }
+      resetBoards();
+      statusText.textContent = "Streaming default CRM traffic...";
+      const response = await fetch("/simulate/live/stream?delay_seconds=0.35");
+      await consumeStream(response);
     }
 
     async function runManualLead() {
       resetBoards();
-      // Reset backend metrics and categorization for new stream
-      await fetch("/metrics/reset", { method: "POST" });
-      await fetch("/lead-categorization/reset", { method: "POST" });
       statusText.textContent = "Streaming manual lead...";
       const response = await fetch("/simulate/live/stream?delay_seconds=0.35", {
         method: "POST",
@@ -2117,484 +1408,22 @@ def live_dashboard() -> HTMLResponse:
       await consumeStream(response);
     }
 
-    async function fetchAndRenderConversionChart() {
-      try {
-        const response = await fetch("/metrics/conversions");
-        const data = await response.json();
-        const filter = segmentFilter ? segmentFilter.value : "all";
-        
-        // Prepare data based on filter with unified labels
-        let chartData = {
-          labels: ["Leads Received", "Contacted", "Qualified", "Engaged", "Deal Closed"],
-          residential: null,
-          commercial: null
-        };
-        
-        let residentialData = data.residential;
-        let commercialData = data.commercial;
-        
-        if (filter === "residential" || filter === "all") {
-          chartData.residential = [
-            residentialData.total_leads,
-            residentialData.contacted,
-            residentialData.interested_in_visit,
-            residentialData.appointment_scheduled,
-            residentialData.deal_closed
-          ];
-        }
-        
-        if (filter === "commercial" || filter === "all") {
-          chartData.commercial = [
-            commercialData.total_leads,
-            commercialData.contacted,
-            commercialData.proposal_sent,
-            commercialData.negotiation,
-            commercialData.deal_closed
-          ];
-        }
-        
-        // Update funnel metrics boxes
-        updateFunnelMetrics(chartData, data);
-        
-        // Render chart
-        renderConversionChart(chartData);
-      } catch (error) {
-        console.error("Error fetching conversion metrics:", error);
-      }
-    }
-
-    function updateFunnelMetrics(chartData, data) {
-      if (!funnelMetrics) return;
-      funnelMetrics.innerHTML = "";
-      const filter = segmentFilter ? segmentFilter.value : "all";
-      
-      if (filter === "residential" || filter === "all") {
-        const residential = data.residential;
-        const conversion = residential.total_leads > 0 ? (residential.deal_closed / residential.total_leads * 100).toFixed(1) : 0;
-        
-        funnelMetrics.innerHTML += `
-          <div class="metric-box">
-            <div class="label">Residential Leads</div>
-            <div class="value">${residential.total_leads}</div>
-          </div>
-          <div class="metric-box">
-            <div class="label">Residential Conversion Rate</div>
-            <div class="value">${conversion}%</div>
-          </div>
-        `;
-      }
-      
-      if (filter === "commercial" || filter === "all") {
-        const commercial = data.commercial;
-        const conversion = commercial.total_leads > 0 ? (commercial.deal_closed / commercial.total_leads * 100).toFixed(1) : 0;
-        
-        funnelMetrics.innerHTML += `
-          <div class="metric-box">
-            <div class="label">Commercial Leads</div>
-            <div class="value">${commercial.total_leads}</div>
-          </div>
-          <div class="metric-box">
-            <div class="label">Commercial Conversion Rate</div>
-            <div class="value">${conversion}%</div>
-          </div>
-        `;
-      }
-    }
-
-    function renderConversionChart(chartData) {
-      const ctx = document.getElementById("conversionChart");
-      if (!ctx || !chartData) return;
-      const filter = segmentFilter ? segmentFilter.value : "all";
-      
-      const datasets = [];
-      const colors = {
-        residential: { bg: "rgba(13, 124, 102, 0.4)", border: "rgb(13, 124, 102)", fill: true },
-        commercial: { bg: "rgba(183, 110, 43, 0.4)", border: "rgb(183, 110, 43)", fill: true }
-      };
-      
-      if ((filter === "residential" || filter === "all") && chartData.residential) {
-        datasets.push({
-          label: "Residential Funnel",
-          data: chartData.residential,
-          borderColor: colors.residential.border,
-          backgroundColor: colors.residential.bg,
-          fill: colors.residential.fill,
-          tension: 0.4,
-          pointRadius: 5,
-          pointHoverRadius: 7,
-          borderWidth: 2,
-          pointBackgroundColor: colors.residential.border,
-          pointBorderColor: "white",
-          pointBorderWidth: 2
-        });
-      }
-      
-      if ((filter === "commercial" || filter === "all") && chartData.commercial) {
-        datasets.push({
-          label: "Commercial Funnel",
-          data: chartData.commercial,
-          borderColor: colors.commercial.border,
-          backgroundColor: colors.commercial.bg,
-          fill: colors.commercial.fill,
-          tension: 0.4,
-          pointRadius: 5,
-          pointHoverRadius: 7,
-          borderWidth: 2,
-          pointBackgroundColor: colors.commercial.border,
-          pointBorderColor: "white",
-          pointBorderWidth: 2
-        });
-      }
-      
-      if (conversionChart) {
-        conversionChart.data.labels = chartData.labels;
-        conversionChart.data.datasets = datasets;
-        conversionChart.update();
-      } else {
-        conversionChart = new Chart(ctx, {
-          type: "line",
-          data: {
-            labels: chartData.labels,
-            datasets: datasets
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: {
-                position: "top",
-                labels: { font: { size: 12 }, padding: 15, usePointStyle: true }
-              },
-              tooltip: {
-                backgroundColor: "rgba(0, 0, 0, 0.8)",
-                titleFont: { size: 12 },
-                bodyFont: { size: 11 },
-                padding: 10,
-                cornerRadius: 6
-              }
-            },
-            scales: {
-              y: {
-                beginAtZero: true,
-                ticks: { font: { size: 11 }, color: "rgb(94, 106, 107)" },
-                grid: { color: "rgba(31, 44, 45, 0.1)" },
-                title: { display: true, text: "Number of Leads" }
-              },
-              x: {
-                ticks: { font: { size: 11 }, color: "rgb(94, 106, 107)" },
-                grid: { display: false }
-              }
-            }
-          }
-        });
-      }
-    }
-
-    async function resetConversionMetrics() {
-      try {
-        const response = await fetch("/metrics/reset", { method: "POST" });
-        const data = await response.json();
-        console.log(data.status);
-        await fetchAndRenderConversionChart();
-      } catch (error) {
-        console.error("Error resetting metrics:", error);
-      }
-    }
-
-    async function fetchAndRenderLeadCategorization() {
-      try {
-        const response = await fetch("/lead-categorization");
-        const data = await response.json();
-        
-        // Render each category box
-        const categories = [
-          { key: "eligible_for_contact", label: "Eligible for Contact" },
-          { key: "scheduled_for_visit", label: "Scheduled for Visit" },
-          { key: "cold_leads", label: "Cold Leads" },
-          { key: "qualification_pending", label: "Qualification Pending" },
-          { key: "deal_closed", label: "Deal Closed" }
-        ];
-        
-        categories.forEach(category => {
-          const count = data[category.key] ? data[category.key].length : 0;
-          const countEl = document.getElementById(`count-${category.key}`);
-          const detailsEl = document.getElementById(`details-${category.key}`);
-          
-          if (countEl) {
-            countEl.textContent = count;
-          }
-          
-          if (detailsEl) {
-            if (data[category.key] && data[category.key].length > 0) {
-              const leadNames = data[category.key].map(lead => {
-                const leadId = lead.lead_id || "unknown";
-                const name = lead.customer_name || "N/A";
-                const property = lead.property_type || "N/A";
-                return `<div class="lead-item" style="font-size: 0.85rem; padding: 4px 0; color: var(--muted);">${name} (${property}, ${leadId})</div>`;
-              }).join("");
-              detailsEl.innerHTML = leadNames;
-            } else {
-              detailsEl.innerHTML = `<div class="lead-item" style="font-size: 0.85rem; padding: 4px 0; color: var(--muted);">No leads</div>`;
-            }
-          }
-        });
-      } catch (error) {
-        console.error("Error fetching lead categorization:", error);
-      }
-    }
-
-    async function fetchAndRenderMarketRates() {
-      try {
-        const response = await fetch("/market-rates");
-        const data = await response.json();
-        
-        // Update the market rate title with current property type
-        const segment = segmentSelect.value;
-        const selectedPropertyType = segment === "residential" ? propertyTypeInput.value : businessTypeInput.value;
-        const marketRateTitle = document.getElementById("marketRateTitle");
-        if (marketRateTitle) {
-          marketRateTitle.textContent = `Analyzing: ${selectedPropertyType || "Property"}`;
-        }
-        
-        renderMarketRateChart(data.market_rates);
-        updateMarketInfoGrid(data.market_rates);
-      } catch (error) {
-        console.error("Error fetching market rates:", error);
-      }
-    }
-
-    function renderMarketRateChart(marketRates) {
-      const ctx = document.getElementById("marketRateChart");
-      if (!ctx || !marketRates) return;
-      const locationFilter = marketLocationFilter ? marketLocationFilter.value : "all";
-      const segment = segmentSelect ? segmentSelect.value : "residential";
-      
-      // Determine the property type to filter by
-      let selectedPropertyType = segment === "residential" ? 
-        (propertyTypeInput ? propertyTypeInput.value : "") : 
-        (businessTypeInput ? businessTypeInput.value : "");
-      
-      // Normalize property type for matching
-      const normalizePropertyType = (ptype) => {
-        if (!ptype) return "";
-        return ptype.toLowerCase().trim();
-      };
-      
-      const targetPropertyType = normalizePropertyType(selectedPropertyType);
-      
-      const locations = [];
-      const priceData = [];
-      
-      // Collect data only for the selected property type
-      for (const [location, propertyTypes] of Object.entries(marketRates)) {
-        if (locationFilter !== "all" && location !== locationFilter) continue;
-        
-        for (const [ptype, rates] of Object.entries(propertyTypes)) {
-          if (normalizePropertyType(ptype) === targetPropertyType || ptype.toLowerCase().includes(targetPropertyType.split(" ")[0])) {
-            locations.push(location);
-            priceData.push(rates.average || 0);
-            break; // Only add once per location for this property type
-          }
-        }
-      }
-      
-      // If no specific property type found, show all available data
-      if (priceData.length === 0) {
-        for (const [location, propertyTypes] of Object.entries(marketRates)) {
-          if (locationFilter !== "all" && location !== locationFilter) continue;
-          
-          for (const [ptype, rates] of Object.entries(propertyTypes)) {
-            locations.push(`${location} - ${ptype}`);
-            priceData.push(rates.average || 0);
-          }
-        }
-      }
-      
-      const color = segment === "residential" ? 
-        { bg: "rgba(13, 124, 102, 0.4)", border: "rgb(13, 124, 102)" } :
-        { bg: "rgba(183, 110, 43, 0.4)", border: "rgb(183, 110, 43)" };
-      
-      const datasets = [{
-        label: selectedPropertyType || "Market Rate",
-        data: priceData,
-        borderColor: color.border,
-        backgroundColor: color.bg,
-        fill: true,
-        tension: 0.3,
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        borderWidth: 2,
-        pointBackgroundColor: color.border,
-        pointBorderColor: "white",
-        pointBorderWidth: 2
-      }];
-      
-      if (marketRateChart) {
-        marketRateChart.data.labels = locations;
-        marketRateChart.data.datasets = datasets;
-        marketRateChart.update();
-      } else {
-        marketRateChart = new Chart(ctx, {
-          type: "line",
-          data: {
-            labels: locations,
-            datasets: datasets
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: {
-                position: "top",
-                labels: { font: { size: 11 }, padding: 12, usePointStyle: true }
-              },
-              tooltip: {
-                backgroundColor: "rgba(0, 0, 0, 0.8)",
-                titleFont: { size: 11 },
-                bodyFont: { size: 10 },
-                padding: 10,
-                cornerRadius: 6,
-                callbacks: {
-                  label: function(context) {
-                    const value = context.parsed.y;
-                    return context.dataset.label + ": ₹" + (value / 1000000).toFixed(2) + "M";
-                  }
-                }
-              }
-            },
-            scales: {
-              y: {
-                beginAtZero: false,
-                ticks: { font: { size: 10 }, color: "rgb(94, 106, 107)", callback: function(value) {
-                  return "₹" + (value / 1000000).toFixed(1) + "M";
-                }},
-                grid: { color: "rgba(31, 44, 45, 0.1)" },
-                title: { display: true, text: "Average Price" }
-              },
-              x: {
-                ticks: { font: { size: 10 }, color: "rgb(94, 106, 107)" },
-                grid: { display: false }
-              }
-            }
-          }
-        });
-      }
-    }
-if (!marketInfoGrid) return;
-      marketInfoGrid.innerHTML = "";
-      const locationFilter = marketLocationFilter ? marketLocationFilter.value : "all";
-      const segment = segmentSelect ? segmentSelect.value : "residential";
-      
-      // Determine the property type to filter by
-      let selectedPropertyType = segment === "residential" ? 
-        (propertyTypeInput ? propertyTypeInput.value : "") : 
-        (businessTypeInput ? businessTypeInput.value : "")
-      // Determine the property type to filter by
-      let selectedPropertyType = segment === "residential" ? propertyTypeInput.value : businessTypeInput.value;
-      const normalizePropertyType = (ptype) => {
-        if (!ptype) return "";
-        return ptype.toLowerCase().trim();
-      };
-      
-      const targetPropertyType = normalizePropertyType(selectedPropertyType);
-      
-      // Show info only for the selected property type
-      for (const [location, propertyTypes] of Object.entries(marketRates)) {
-        if (locationFilter !== "all" && location !== locationFilter) continue;
-        
-        for (const [ptype, rates] of Object.entries(propertyTypes)) {
-          // Match the property type
-          if (normalizePropertyType(ptype) === targetPropertyType || 
-              ptype.toLowerCase().includes(targetPropertyType.split(" ")[0])) {
-            const avg = (rates.average / 1000000).toFixed(2);
-            const min = (rates.min / 1000000).toFixed(2);
-            const max = (rates.max / 1000000).toFixed(2);
-            
-            marketInfoGrid.innerHTML += `
-              <div class="market-info-cell">
-                <div class="loc">${location}</div>
-                <div class="ptype">${ptype}</div>
-                <div class="price">
-                  Avg: ₹${avg}M<br/>
-                  <span style="font-size: 0.75rem; color: var(--muted);">
-                    (₹${min}M - ₹${max}M)
-                  </span>
-                </div>
-              </div>
-            `;
-            break; // Only show once per location
-          }
-        }
-      }
-    }
-
-    // Setup event listeners with null checks
-    if (startButton) startButton.addEventListener("click", startStream);
-    if (submitManualButton) submitManualButton.addEventListener("click", runManualLead);
-    if (loadDefaultButton) loadDefaultButton.addEventListener("click", loadWhitefieldExample);
-    if (loadCommercialButton) loadCommercialButton.addEventListener("click", loadCommercialExample);
-    if (segmentSelect) {
-      segmentSelect.addEventListener("change", () => {
-        syncSegmentFields();
-        fetchAndRenderMarketRates();
-      });
-    }
-    if (startVoiceIntakeButton) startVoiceIntakeButton.addEventListener("click", startVoiceIntake);
-    if (dictateInquiryButton) dictateInquiryButton.addEventListener("click", dictateInquiry);
-    if (playLatestCallButton) playLatestCallButton.addEventListener("click", playLatestCall);
-    if (submitTestInquiryButton) submitTestInquiryButton.addEventListener("click", submitTestInquiry);
-    if (segmentFilter) segmentFilter.addEventListener("change", () => {
-      fetchAndRenderConversionChart();
-    });
-    if (resetMetricsBtn) resetMetricsBtn.addEventListener("click", resetConversionMetrics);
-    if (marketLocationFilter) marketLocationFilter.addEventListener("change", fetchAndRenderMarketRates);
-    if (propertyTypeInput) {
-      propertyTypeInput.addEventListener("change", fetchAndRenderMarketRates);
-      propertyTypeInput.addEventListener("blur", fetchAndRenderMarketRates);
-      propertyTypeInput.addEventListener("keyup", fetchAndRenderMarketRates);
-    }
-    if (businessTypeInput) {
-      businessTypeInput.addEventListener("change", fetchAndRenderMarketRates);
-      businessTypeInput.addEventListener("blur", fetchAndRenderMarketRates);
-      businessTypeInput.addEventListener("keyup", fetchAndRenderMarketRates);
-    }
+    startButton.addEventListener("click", startStream);
+    submitManualButton.addEventListener("click", runManualLead);
+    loadDefaultButton.addEventListener("click", loadWhitefieldExample);
+    loadCommercialButton.addEventListener("click", loadCommercialExample);
+    segmentSelect.addEventListener("change", syncSegmentFields);
+    startVoiceIntakeButton.addEventListener("click", startVoiceIntake);
+    dictateInquiryButton.addEventListener("click", dictateInquiry);
+    playLatestCallButton.addEventListener("click", playLatestCall);
     if (!recognitionSupported && !playbackSupported) {
       voiceLog.textContent = "Voice features are unavailable in this browser. Use Chrome or Edge for speech recognition.";
     } else if (!recognitionSupported) {
       voiceLog.textContent = "Voice playback is available, but microphone dictation is not supported in this browser.";
-    
-    // Initialize the dashboard
-    console.log("Dashboard initializing...");
-    (async function() {
-      try {
-        loadWhitefieldExample();
-        console.log("Default example loaded");
-      } catch (e) {
-        console.error("Error loading default example:", e);
-      }
-      
-      try {
-        await fetchAndRenderConversionChart();
-        console.log("Conversion chart rendered");
-      } catch (e) {
-        console.error("Error rendering conversion chart:", e);
-      }
-      
-      try {
-        await fetchAndRenderMarketRates();
-        console.log("Market rates rendered");
-      } catch (e) {
-        console.error("Error rendering market rates:", e);
-      }
-      
-      try {
-        await fetchAndRenderLeadCategorization();
-        console.log("Lead categorization rendered");
-      } catch (e) {
-        console.error("Error rendering lead categorization:", e);
-      }
-      console.log("Dashboard initialization complete");
-    })();
+    } else if (!playbackSupported) {
+      voiceLog.textContent = "Voice dictation is available, but speech playback is not supported in this browser.";
+    }
+    loadWhitefieldExample();
   </script>
 </body>
 </html>
