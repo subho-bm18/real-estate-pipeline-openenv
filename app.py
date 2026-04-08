@@ -24,16 +24,22 @@ app = FastAPI(title="Real Estate Pipeline OpenEnv", version="0.1.0")
 env = RealEstatePipelineEnv()
 latest_call_cache: dict[str, object] = {}
 
-# Funnel metrics tracking
+# Funnel metrics tracking - E2E Sales Pipeline Stages
 funnel_metrics = {
     "leads_received": 0,
     "contacted": 0,
     "qualified": 0,
-    "engaged": 0,
+    "sale_agreement_in_process": 0,
+    "payment_made": 0,
+    "follow_up": 0,
     "deal_closed": 0,
-    "purchased": 0,
 }
+
+# Stage order for pipeline tracking
+STAGE_ORDER = ["received", "contacted", "qualified", "sale_agreement_in_process", "payment_made", "follow_up", "deal_closed"]
+
 lead_stages: dict[str, str] = {}  # Track each lead's current stage
+stage_timestamps: dict[str, dict[str, float]] = {}  # Track when each lead enters each stage
 
 # Market analysis data by location
 market_data = {
@@ -140,6 +146,27 @@ builder_data = {
             "coordinate": "12.9705° N, 77.7505° E",
             "project_type": "Commercial/Residential Mix",
             "units": "150 Units"
+        },
+        {
+            "name": "Divyasree Group - Divyasree Elantra",
+            "location": "Whitefield Tech Park",
+            "coordinate": "12.9710° N, 77.7480° E",
+            "project_type": "IT Professional Housing",
+            "units": "350 Apartments"
+        },
+        {
+            "name": "Salarpuria Sattva - Moonstone",
+            "location": "Whitefield East",
+            "coordinate": "12.9715° N, 77.7520° E",
+            "project_type": "Smart Homes Residential",
+            "units": "200 Apartments"
+        },
+        {
+            "name": "Ruchira Homes - Ruchira Heights",
+            "location": "Whitefield South",
+            "coordinate": "12.9690° N, 77.7460° E",
+            "project_type": "Mid-Range Residential",
+            "units": "300 Apartments"
         }
     ],
     "Marathahalli": [
@@ -163,6 +190,27 @@ builder_data = {
             "coordinate": "12.9520° N, 77.7270° E",
             "project_type": "Mid-Range Residential",
             "units": "200 Apartments"
+        },
+        {
+            "name": "My Home Group - My Home North Star",
+            "location": "Marathahalli Inner Ring",
+            "coordinate": "12.9535° N, 77.7265° E",
+            "project_type": "Luxury Apartments",
+            "units": "250 Units"
+        },
+        {
+            "name": "Provident Housing - Provident Sunrise",
+            "location": "Marathahalli East",
+            "coordinate": "12.9545° N, 77.7275° E",
+            "project_type": "Budget Luxury",
+            "units": "400 Apartments"
+        },
+        {
+            "name": "Prestige Group - Prestige High Fields",
+            "location": "Marathahalli Tech Zone",
+            "coordinate": "12.9550° N, 77.7290° E",
+            "project_type": "Premium Gated Villas",
+            "units": "180 Villas"
         }
     ],
     "Sarjapur": [
@@ -186,6 +234,27 @@ builder_data = {
             "coordinate": "12.8400° N, 77.7460° E",
             "project_type": "Affordable Luxury",
             "units": "350 Apartments"
+        },
+        {
+            "name": "Brigade Group - Brigade Cornerstone",
+            "location": "Sarjapur Tech Hub",
+            "coordinate": "12.8385° N, 77.7445° E",
+            "project_type": "Ultra-Modern Residential",
+            "units": "320 Apartments"
+        },
+        {
+            "name": "Puravankara - Purva Panorama",
+            "location": "Sarjapur South",
+            "coordinate": "12.8405° N, 77.7465° E",
+            "project_type": "Luxury Villas",
+            "units": "150 Villas"
+        },
+        {
+            "name": "Godrej Properties - Godrej Nest",
+            "location": "Sarjapur East",
+            "coordinate": "12.8410° N, 77.7470° E",
+            "project_type": "Family Living",
+            "units": "380 Apartments"
         }
     ],
     "Indiranagar": [
@@ -209,6 +278,27 @@ builder_data = {
             "coordinate": "13.0015° N, 77.6420° E",
             "project_type": "Premium Gated Community",
             "units": "250 Apartments"
+        },
+        {
+            "name": "Prestige Group - Prestige Song of Nature",
+            "location": "Indiranagar North",
+            "coordinate": "13.0020° N, 77.6425° E",
+            "project_type": "Eco-Luxury Residences",
+            "units": "220 Villas"
+        },
+        {
+            "name": "Embassy Group - Embassy Experia",
+            "location": "Indiranagar West",
+            "coordinate": "13.0005° N, 77.6405° E",
+            "project_type": "Corporate Housing",
+            "units": "300 Apartments"
+        },
+        {
+            "name": "Casagrand - Casagrand Utopia Plus",
+            "location": "Indiranagar South",
+            "coordinate": "13.0012° N, 77.6410° E",
+            "project_type": "Smart Community",
+            "units": "280 Apartments"
         }
     ],
     "Koramangala": [
@@ -232,6 +322,27 @@ builder_data = {
             "coordinate": "12.9355° N, 77.6240° E",
             "project_type": "Ultra-Luxury Residential",
             "units": "150 Apartments"
+        },
+        {
+            "name": "Lodha Group - Lodha Vista",
+            "location": "Koramangala East",
+            "coordinate": "12.9360° N, 77.6255° E",
+            "project_type": "Luxury Residences",
+            "units": "180 Apartments"
+        },
+        {
+            "name": "Divyasree Group - Divyasree Elantra Plus",
+            "location": "Koramangala North",
+            "coordinate": "12.9345° N, 77.6235° E",
+            "project_type": "Premium Mixed-Use",
+            "units": "200+ Units"
+        },
+        {
+            "name": "Sobha Limited - Sobha Metropolis",
+            "location": "Koramangala West",
+            "coordinate": "12.9348° N, 77.6260° E",
+            "project_type": "Ultra-Premium Residential",
+            "units": "160 Apartments"
         }
     ],
     "HSR Layout": [
@@ -248,6 +359,34 @@ builder_data = {
             "coordinate": "12.9270° N, 77.6350° E",
             "project_type": "Mid-Premium Residential",
             "units": "200 Apartments"
+        },
+        {
+            "name": "Sattva Group - Sattva Evoke",
+            "location": "HSR Layout South",
+            "coordinate": "12.9265° N, 77.6340° E",
+            "project_type": "Contemporary Living",
+            "units": "250 Apartments"
+        },
+        {
+            "name": "Brigade Group - Brigade Northridge",
+            "location": "HSR Layout North",
+            "coordinate": "12.9280° N, 77.6355° E",
+            "project_type": "Premium Homes",
+            "units": "220 Villas"
+        },
+        {
+            "name": "My Home Group - My Home Premier",
+            "location": "HSR Layout Central",
+            "coordinate": "12.9275° N, 77.6348° E",
+            "project_type": "Luxury Apartments",
+            "units": "260 Units"
+        },
+        {
+            "name": "Ruchira Homes - Ruchira Platinum",
+            "location": "HSR Layout East",
+            "coordinate": "12.9268° N, 77.6352° E",
+            "project_type": "Smart Residences",
+            "units": "180 Apartments"
         }
     ],
     "MG Road": [
@@ -264,6 +403,34 @@ builder_data = {
             "coordinate": "13.0006° N, 77.5940° E",
             "project_type": "Corporate Housing",
             "units": "120 Premium Apartments"
+        },
+        {
+            "name": "Prestige Group - Prestige Towers",
+            "location": "MG Road Central",
+            "coordinate": "13.0008° N, 77.5938° E",
+            "project_type": "Grade-A Office Space",
+            "units": "600+ Sq.ft"
+        },
+        {
+            "name": "Lodha Group - Lodha Business Hub",
+            "location": "MG Road Tech Zone",
+            "coordinate": "13.0005° N, 77.5935° E",
+            "project_type": "Premium Commercial",
+            "units": "700+ Sq.ft"
+        },
+        {
+            "name": "DLF Limited - DLF Tech Park",
+            "location": "MG Road Innovation District",
+            "coordinate": "13.0010° N, 77.5945° E",
+            "project_type": "IT Corporate Campus",
+            "units": "800+ Sq.ft"
+        },
+        {
+            "name": "Embassy Group - Embassy Workspaces",
+            "location": "MG Road Premium Business",
+            "coordinate": "13.0003° N, 77.5942° E",
+            "project_type": "Modern Office Complex",
+            "units": "550+ Sq.ft"
         }
     ],
     "CBD Retail District": [
@@ -280,6 +447,34 @@ builder_data = {
             "coordinate": "13.0025° N, 77.5925° E",
             "project_type": "Premium Retail/Commercial",
             "units": "1000+ Sq.ft Commercial"
+        },
+        {
+            "name": "DLF - DLF Retail Garden",
+            "location": "CBD Retail Hub",
+            "coordinate": "13.0030° N, 77.5918° E",
+            "project_type": "Mixed-Use Retail",
+            "units": "1200+ Sq.ft"
+        },
+        {
+            "name": "Brigade Group - Brigade Forum",
+            "location": "CBD Main Street",
+            "coordinate": "13.0023° N, 77.5928° E",
+            "project_type": "Premium Shopping Complex",
+            "units": "950+ Sq.ft"
+        },
+        {
+            "name": "Prestige Group - Prestige Retail",
+            "location": "CBD Entertainment Zone",
+            "coordinate": "13.0028° N, 77.5922° E",
+            "project_type": "Entertainment Retail",
+            "units": "1100+ Sq.ft"
+        },
+        {
+            "name": "Sobha Limited - Sobha City Square",
+            "location": "CBD Commercial Hub",
+            "coordinate": "13.0026° N, 77.5920° E",
+            "project_type": "Commercial Retail Premium",
+            "units": "850+ Sq.ft"
         }
     ]
 }
@@ -354,16 +549,28 @@ def state() -> dict[str, object]:
 
 @app.get("/metrics/funnel")
 def get_funnel_metrics() -> dict[str, object]:
-    """Returns funnel metrics: leads received → contacted → qualified → engaged → deal closed → purchased"""
+    """Returns funnel metrics for E2E sales pipeline: Received → Contacted → Qualified → Sale Agreement → Payment → Follow-up → Deal Closed"""
+    
+    # Calculate conversion rates for each stage (stage-to-stage transition)
+    conversion_rates = {
+        "contacted_rate": round((funnel_metrics["contacted"] / funnel_metrics["leads_received"] * 100), 1) if funnel_metrics["leads_received"] > 0 else 0,
+        "qualified_rate": round((funnel_metrics["qualified"] / funnel_metrics["contacted"] * 100), 1) if funnel_metrics["contacted"] > 0 else 0,
+        "sale_agreement_rate": round((funnel_metrics["sale_agreement_in_process"] / funnel_metrics["qualified"] * 100), 1) if funnel_metrics["qualified"] > 0 else 0,
+        "payment_made_rate": round((funnel_metrics["payment_made"] / funnel_metrics["sale_agreement_in_process"] * 100), 1) if funnel_metrics["sale_agreement_in_process"] > 0 else 0,
+        "follow_up_rate": round((funnel_metrics["follow_up"] / funnel_metrics["payment_made"] * 100), 1) if funnel_metrics["payment_made"] > 0 else 0,
+        "deal_closed_rate": round((funnel_metrics["deal_closed"] / funnel_metrics["follow_up"] * 100), 1) if funnel_metrics["follow_up"] > 0 else 0,
+    }
+    
+    # Calculate overall conversion rate (leads to deal closed)
+    overall_conversion = round((funnel_metrics["deal_closed"] / funnel_metrics["leads_received"] * 100), 1) if funnel_metrics["leads_received"] > 0 else 0
+    
     return {
         "funnel_stages": funnel_metrics,
-        "conversion_rates": {
-            "contacted_rate": round((funnel_metrics["contacted"] / max(funnel_metrics["leads_received"], 1)) * 100, 1),
-            "qualified_rate": round((funnel_metrics["qualified"] / max(funnel_metrics["contacted"], 1)) * 100, 1),
-            "engaged_rate": round((funnel_metrics["engaged"] / max(funnel_metrics["qualified"], 1)) * 100, 1),
-            "deal_closed_rate": round((funnel_metrics["deal_closed"] / max(funnel_metrics["engaged"], 1)) * 100, 1),
-            "purchased_rate": round((funnel_metrics["purchased"] / max(funnel_metrics["deal_closed"], 1)) * 100, 1),
-        }
+        "stage_order": STAGE_ORDER,
+        "conversion_rates": conversion_rates,
+        "overall_conversion_rate": overall_conversion,
+        "total_leads": funnel_metrics["leads_received"],
+        "deals_closed": funnel_metrics["deal_closed"]
     }
 
 
@@ -379,8 +586,15 @@ def market_analysis(request: dict | None = None) -> dict[str, object]:
     market_info = market_data.get(location, market_data["Whitefield"])
     segment_data = market_info.get(segment, market_info.get("residential", {}))
     
-    # Get distance between locations
-    distance = distance_matrix.get(customer_location, {}).get(location, 5.0)
+    # Get distance between locations and fall back gracefully for unknown/self routes.
+    if customer_location == location:
+        distance = 0.0
+    else:
+        distance = (
+            distance_matrix.get(customer_location, {}).get(location)
+            or distance_matrix.get(location, {}).get(customer_location)
+            or 5.0
+        )
     
     # Calculate affordable price range based on budget and market rates
     avg_price_per_sqft = segment_data.get("avg_price_per_sqft", 6500)
@@ -396,7 +610,14 @@ def market_analysis(request: dict | None = None) -> dict[str, object]:
     for loc, data in market_data.items():
         if loc != location:
             loc_segment_data = data.get(segment, data.get("residential", {}))
-            distance_to_loc = distance_matrix.get(customer_location, {}).get(loc, 0)
+            if customer_location == loc:
+                distance_to_loc = 0.0
+            else:
+                distance_to_loc = (
+                    distance_matrix.get(customer_location, {}).get(loc)
+                    or distance_matrix.get(loc, {}).get(customer_location)
+                    or 5.0
+                )
             comparable_locations[loc] = {
                 "avg_price_per_sqft": loc_segment_data.get("avg_price_per_sqft", 0),
                 "demand": loc_segment_data.get("demand", "unknown"),
@@ -653,6 +874,7 @@ def simulate_live_stream_custom(
 
 
 def _cache_call_stream(stream):
+    import time
     for raw_event in stream:
         try:
             event = json.loads(raw_event)
@@ -664,37 +886,50 @@ def _cache_call_stream(stream):
         lead_id = event.get("lead_id")
         event_type = event.get("event")
 
-        # Track funnel metrics
+        # Track funnel metrics for E2E stages
         if event_type == "lead_received":
             funnel_metrics["leads_received"] += 1
             lead_stages[lead_id] = "received"
+            stage_timestamps[lead_id] = {"received": time.time()}
         
         elif event_type == "lead_step":
             current_stage = lead_stages.get(lead_id, "received")
             last_action = payload.get("last_action_result", "")
             
-            # Update stage based on action result
+            # Update stage based on action result - map to E2E stages
             if last_action and current_stage != last_action:
-                # Prevent double-counting by checking if we're moving to a new stage
-                stage_order = ["received", "contacted", "qualified", "engaged", "deal_closed", "purchased"]
-                if last_action in stage_order:
-                    old_index = stage_order.index(current_stage) if current_stage in stage_order else 0
-                    new_index = stage_order.index(last_action)
+                # Map action results to our E2E stage names
+                stage_mapping = {
+                    "received": "received",
+                    "contacted": "contacted",
+                    "qualified": "qualified",
+                    "engagement": "sale_agreement_in_process",
+                    "negotiation": "sale_agreement_in_process",
+                    "visit_scheduled": "qualified",
+                    "nurture": "follow_up",
+                    "deal_closed": "deal_closed",
+                    "purchased": "deal_closed",
+                    "payment_made": "payment_made",
+                    "follow_up": "follow_up"
+                }
+                
+                mapped_stage = stage_mapping.get(last_action, last_action)
+                
+                if mapped_stage in STAGE_ORDER:
+                    old_index = STAGE_ORDER.index(current_stage) if current_stage in STAGE_ORDER else 0
+                    new_index = STAGE_ORDER.index(mapped_stage)
                     
-                    # Increment metrics for each stage reached
+                    # Only increment the final stage reached (realistic conversion)
                     if new_index > old_index:
-                        for idx in range(old_index + 1, new_index + 1):
-                            stage = stage_order[idx]
-                            if stage == "contacted" and funnel_metrics["contacted"] == funnel_metrics.get("_contacted_count", 0):
-                                funnel_metrics["contacted"] += 1
-                                funnel_metrics["_contacted_count"] = funnel_metrics["contacted"]
-                            elif stage == "qualified" and current_stage in ["received", "contacted"]:
-                                funnel_metrics["qualified"] += 1
-                            elif stage == "engaged" and current_stage in ["received", "contacted", "qualified"]:
-                                funnel_metrics["engaged"] += 1
-                            elif stage == "deal_closed" and current_stage in ["received", "contacted", "qualified", "engaged"]:
-                                funnel_metrics["deal_closed"] += 1
-                    lead_stages[lead_id] = last_action
+                        stage = STAGE_ORDER[new_index]
+                        metric_key = stage if stage != "received" else None
+                        if metric_key and metric_key in funnel_metrics:
+                            funnel_metrics[metric_key] += 1
+                        
+                        lead_stages[lead_id] = mapped_stage
+                        if lead_id not in stage_timestamps:
+                            stage_timestamps[lead_id] = {}
+                        stage_timestamps[lead_id][mapped_stage] = time.time()
             
             if payload.get("call_transcript"):
                 latest_call_cache.clear()
@@ -712,13 +947,31 @@ def _cache_call_stream(stream):
         
         elif event_type == "lead_completed":
             final_stage = payload.get("final_stage", "")
-            if final_stage == "deal_closed":
-                funnel_metrics["deal_closed"] += 1
+            # Map final stage to E2E stage
+            stage_mapping = {
+                "deal_closed": "deal_closed",
+                "purchased": "deal_closed",
+                "nurture": "follow_up"
+            }
+            mapped_final_stage = stage_mapping.get(final_stage, final_stage)
+            
+            if mapped_final_stage in STAGE_ORDER:
+                current = lead_stages.get(lead_id, "received")
+                current_idx = STAGE_ORDER.index(current) if current in STAGE_ORDER else 0
+                final_idx = STAGE_ORDER.index(mapped_final_stage)
+                
+                # Update to final stage if it's an advancement (realistic: only count final stage)
+                if final_idx > current_idx:
+                    stage = STAGE_ORDER[final_idx]
+                    if stage != "received" and stage in funnel_metrics:
+                        funnel_metrics[stage] += 1
+                    lead_stages[lead_id] = mapped_final_stage
+            
             lead_stages[lead_id] = "completed"
         
         elif event_type == "run_completed":
-            # Reset on new run
-            funnel_metrics["leads_received"] = payload.get("processed_leads", 0)
+            # Note: Don't reset metrics on new run, just continue tracking
+            pass
         
         yield raw_event
 
@@ -1084,6 +1337,13 @@ def live_dashboard() -> HTMLResponse:
       border: 1px solid var(--accent-soft);
       margin-bottom: 10px;
     }
+    .funnel-stage.summary-stage {
+      background: linear-gradient(135deg, rgba(13, 124, 102, 0.15) 0%, rgba(210, 180, 222, 0.1) 100%);
+      border: 2px solid var(--accent);
+      margin-top: 12px;
+      padding: 18px;
+      font-weight: 600;
+    }
     .funnel-stage-label {
       font-weight: 700;
       color: var(--accent);
@@ -1094,9 +1354,9 @@ def live_dashboard() -> HTMLResponse:
       color: var(--ink);
       font-weight: 700;
     }
-    .funnel-stage-rate {
-      font-size: 0.85rem;
-      color: var(--muted);
+    .summary-stage .funnel-stage-count {
+      font-size: 2.2rem;
+      color: #1c7c54;
     }
     .market-analysis-grid {
       display: grid;
@@ -1339,15 +1599,58 @@ def live_dashboard() -> HTMLResponse:
       <button id="startButton">Start Stream</button>
       <div class="status" id="statusText">Ready to simulate inbound CRM traffic.</div>
     </div>
+    
+    <div class="grid">
+      <section>
+        <h2>🚀 Quick Start Guide</h2>
+        <div class="form-actions" style="gap: 10px; flex-wrap: wrap;">
+          <div style="width: 100%; padding: 12px; background: #f0f8f5; border-radius: 8px; border-left: 4px solid #0d7c66;">
+            <strong>Choose how to enter a lead:</strong><br/>
+            <small style="display: block; margin-top: 8px;">
+              • <strong>Voice Intake:</strong> Speak answers to guided questions (fastest)<br/>
+              • <strong>Manual Entry:</strong> Fill in the form fields directly<br/>
+              • <strong>Live Stream:</strong> Generate multiple realistic leads automatically
+            </small>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>🎤 Voice Intake (Recommended)</h2>
+        <div class="voice-panel">
+          <div class="sub" style="margin-bottom: 12px;">
+            ✓ Click "Start Voice Intake" and speak your answers to each question<br/>
+            ✓ No speech detected? Text box will appear automatically<br/>
+            ✓ Works best in Chrome, Edge, or Firefox with microphone permission
+          </div>
+          <div class="form-actions" style="margin-bottom: 12px;">
+            <button id="startVoiceIntakeButton" class="voice">🎤 Start Voice Intake</button>
+            <button id="playLatestCallButton" class="secondary">▶ Play Latest Call</button>
+          </div>
+          <div id="fallbackTextInputPanel" class="fallback-text-panel" style="display: none;">
+            <div><strong>📝 Type Your Answer</strong></div>
+            <div id="fallbackQuestionText" class="fallback-question"></div>
+            <div class="fallback-input-group">
+              <input id="fallbackTextInput" type="text" placeholder="Your answer here..." />
+              <button id="fallbackSubmitButton" class="voice">Submit</button>
+              <button id="fallbackSkipButton" class="secondary" style="display: none;">Skip</button>
+            </div>
+            <div id="fallbackStatus" class="fallback-status"></div>
+          </div>
+          <div class="voice-log" id="voiceLog" style="margin-top: 12px; padding: 8px; background: #f5f5f5; border-radius: 4px; font-size: 12px; min-height: 20px;">Status: Ready</div>
+        </div>
+      </section>
+    </div>
+    
     <div class="funnel-grid">
       <div class="chart-section">
-        <h2>Business Funnel: Lead to Purchase</h2>
+        <h2>E2E Sales Pipeline: Lead to Deal Closed</h2>
         <div class="chart-container">
           <canvas id="funnelChart"></canvas>
         </div>
       </div>
       <div class="chart-section">
-        <h2>Conversion Rates by Stage</h2>
+        <h2>E2E Sales Pipeline: Conversion Rates by Stage</h2>
         <div id="conversionMetrics">
           <div class="funnel-stage">
             <div class="funnel-stage-label">Leads Received → Contacted</div>
@@ -1358,25 +1661,33 @@ def live_dashboard() -> HTMLResponse:
             <div class="funnel-stage-count" id="rate2">0%</div>
           </div>
           <div class="funnel-stage">
-            <div class="funnel-stage-label">Qualified → Engaged</div>
+            <div class="funnel-stage-label">Qualified → Sale Agreement</div>
             <div class="funnel-stage-count" id="rate3">0%</div>
           </div>
           <div class="funnel-stage">
-            <div class="funnel-stage-label">Engaged → Deal Closed</div>
+            <div class="funnel-stage-label">Sale Agreement → Payment Made</div>
             <div class="funnel-stage-count" id="rate4">0%</div>
           </div>
           <div class="funnel-stage">
-            <div class="funnel-stage-label">Deal Closed → Purchased</div>
+            <div class="funnel-stage-label">Payment → Follow-up</div>
             <div class="funnel-stage-count" id="rate5">0%</div>
+          </div>
+          <div class="funnel-stage">
+            <div class="funnel-stage-label">Follow-up → Deal Closed</div>
+            <div class="funnel-stage-count" id="rate6">0%</div>
+          </div>
+          <div class="funnel-stage summary-stage">
+            <div class="funnel-stage-label">📊 Overall Conversion</div>
+            <div class="funnel-stage-count" id="overallRate">0%</div>
           </div>
         </div>
       </div>
     </div>
     <div class="market-analysis-grid">
       <div class="chart-section">
-        <h2><span id="analysisLocationLabel">Whitefield</span> Market Analysis & Comparable Locations</h2>
+        <h2>Market Analysis & Comparable Locations</h2>
         <div style="color: var(--medium-ink); font-size: 0.85rem; margin-bottom: 12px;">
-          <span id="analysisSegmentLabel">Residential</span> segment pricing
+          <span id="analysisSegmentLabel">Residential</span> segment pricing for <strong id="analysisLocationLabel">Whitefield</strong>
         </div>
         <div class="market-chart-container">
           <canvas id="marketChart"></canvas>
@@ -1413,30 +1724,9 @@ def live_dashboard() -> HTMLResponse:
       </div>
       <div id="comparableLocationsList"></div>
     </div>
-    <div class="grid">
       <section>
-        <h2>Manual Lead Entry</h2>
-        <div class="voice-panel">
-          <div><strong>Voice Assistant</strong></div>
-          <div class="sub">Use your microphone to capture a lead verbally or play back the latest simulated call flow. Best supported in Chromium-based browsers.</div>
-          <div class="form-actions" style="margin-top: 12px; margin-bottom: 0;">
-            <button id="startVoiceIntakeButton" class="voice">Start Voice Intake</button>
-            <button id="dictateInquiryButton" class="voice">Dictate Inquiry</button>
-            <button id="playLatestCallButton" class="secondary">Play Latest Call</button>
-          </div>
-          <div class="voice-log" id="voiceLog">Voice assistant idle.</div>
-        </div>
-        <div id="fallbackTextInputPanel" class="fallback-text-panel" style="display: none;">
-          <div><strong>Text Input Fallback</strong></div>
-          <div id="fallbackQuestionText" class="fallback-question"></div>
-          <div class="fallback-input-group">
-            <input id="fallbackTextInput" type="text" placeholder="Type your answer here..." />
-            <button id="fallbackSubmitButton" class="voice">Submit</button>
-            <button id="fallbackSkipButton" class="secondary" style="display: none;">Skip (if optional)</button>
-          </div>
-          <div id="fallbackStatus" class="fallback-status"></div>
-        </div>
-        <div class="form-grid">
+        <h2>📋 Manual Lead Entry</h2>
+        <div class="sub">Fill in lead details manually and click "Run Manual Lead" to process</div>
           <label>
             Lead ID
             <input id="leadId" value="manual_res_001" />
@@ -1527,16 +1817,32 @@ def live_dashboard() -> HTMLResponse:
             <input id="missingFields" value="" placeholder="Comma-separated, for example: budget,timeline_days,financing_status" />
           </label>
         </div>
-        <div class="form-actions">
-          <button id="submitManualButton">Run Manual Lead</button>
-          <button id="loadDefaultButton" class="secondary">Load Whitefield Example</button>
-          <button id="loadCommercialButton" class="secondary">Load Commercial Example</button>
+        <div class="form-actions" style="margin-top: 12px;">
+          <button id="submitManualButton">✓ Run Manual Lead</button>
+          <button id="loadDefaultButton" class="secondary">📌 Load Example (Residential)</button>
+          <button id="loadCommercialButton" class="secondary">📌 Load Example (Commercial)</button>
         </div>
-        <h2>Cab Operations</h2>
-        <div class="cab-panel">
-          <div class="sub">Residential lead runs update this section with cab eligibility, booking progress, notifications, and SLA timing.</div>
+      </section>
+
+      <section>
+        <h2>⚡ Live Traffic Stream</h2>
+        <div class="sub">Automatically generate and process multiple realistic leads in real-time - click "Start Stream" in the header to begin</div>
+        <div class="form-actions" style="margin-top: 12px;">
+          <button id="resetButton" class="secondary">🔄 Reset All Data</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>📊 E2E Sales Pipeline Metrics</h2>
+        <div class="chart-container">
+          <canvas id="funnelChart"></canvas>
+        </div>
+      </section>
+
+      <section>
+        <h2> Cab Operations (Residential Only)</h2>
           <div class="cab-status-list" id="cabStatusList">
-            <div class="cab-status-item"><span class="label">Cab Eligibility</span><span class="value">Awaiting residential lead</span></div>
+            <div class="cab-status-item"><span class="label">Cab Eligibility</span><span class="value">Awaiting lead</span></div>
             <div class="cab-status-item"><span class="label">Builder Approval</span><span class="value">Not checked</span></div>
             <div class="cab-status-item"><span class="label">Pickup Eligibility</span><span class="value">Not checked</span></div>
             <div class="cab-status-item"><span class="label">Drop Eligibility</span><span class="value">Not checked</span></div>
@@ -1547,11 +1853,14 @@ def live_dashboard() -> HTMLResponse:
             <div class="cab-status-item"><span class="label">SMS Notification</span><span class="value">Pending</span></div>
             <div class="cab-status-item"><span class="label">WhatsApp Notification</span><span class="value">Pending</span></div>
           </div>
-          <div class="cab-message" id="cabMessage">Run a residential lead to see the cab operations flow.</div>
+          <div class="cab-message" id="cabMessage">Submit a residential lead to see the cab flow.</div>
         </div>
-        <h2>Builder Search</h2>
+      </section>
+
+      <section>
+        <h2>🏢 Builder & Project Search</h2>
         <div class="builder-search-panel">
-          <div class="sub">Search and explore builders/projects available in your preferred location.</div>
+          <div class="sub">Discover builders and projects in your desired location</div>
           <div class="form-grid" style="margin-top: 12px;">
             <label>
               Search Location
@@ -1717,24 +2026,28 @@ def live_dashboard() -> HTMLResponse:
         .then((data) => {
           const stages = data.funnel_stages || {};
           const rates = data.conversion_rates || {};
+          const overallRate = data.overall_conversion_rate || 0;
           
-          // Update conversion rate display
+          // Update all 7 conversion rate displays (E2E stages)
           document.getElementById("rate1").textContent = rates.contacted_rate + "%";
           document.getElementById("rate2").textContent = rates.qualified_rate + "%";
-          document.getElementById("rate3").textContent = rates.engaged_rate + "%";
-          document.getElementById("rate4").textContent = rates.deal_closed_rate + "%";
-          document.getElementById("rate5").textContent = rates.purchased_rate + "%";
+          document.getElementById("rate3").textContent = rates.sale_agreement_rate + "%";
+          document.getElementById("rate4").textContent = rates.payment_made_rate + "%";
+          document.getElementById("rate5").textContent = rates.follow_up_rate + "%";
+          document.getElementById("rate6").textContent = rates.deal_closed_rate + "%";
+          document.getElementById("overallRate").textContent = overallRate + "%";
           
-          // Render funnel chart
+          // Render funnel chart with all 7 stages
           if (funnelCtx && stages.leads_received > 0) {
-            const labels = ["Leads Received", "Contacted", "Qualified", "Engaged", "Deal Closed", "Purchased"];
+            const labels = ["Leads Received", "Contacted", "Qualified", "Sale Agreement", "Payment Made", "Follow-up", "Deal Closed"];
             const values = [
               stages.leads_received,
               stages.contacted,
               stages.qualified,
-              stages.engaged,
-              stages.deal_closed,
-              stages.purchased || 0
+              stages.sale_agreement_in_process,
+              stages.payment_made,
+              stages.follow_up,
+              stages.deal_closed
             ];
             
             // Create funnel effect by calculating widths
@@ -1753,12 +2066,13 @@ def live_dashboard() -> HTMLResponse:
                     label: "Leads Count",
                     data: values,
                     backgroundColor: [
-                      "rgba(13, 124, 102, 0.8)",
-                      "rgba(13, 124, 102, 0.75)",
-                      "rgba(13, 124, 102, 0.65)",
-                      "rgba(13, 124, 102, 0.55)",
-                      "rgba(13, 124, 102, 0.45)",
-                      "rgba(13, 124, 102, 0.35)"
+                      "rgba(13, 124, 102, 0.85)",
+                      "rgba(13, 124, 102, 0.80)",
+                      "rgba(13, 124, 102, 0.70)",
+                      "rgba(13, 124, 102, 0.60)",
+                      "rgba(13, 124, 102, 0.50)",
+                      "rgba(13, 124, 102, 0.40)",
+                      "rgba(13, 124, 102, 0.30)"
                     ],
                     borderColor: "rgba(13, 124, 102, 1)",
                     borderWidth: 2,
@@ -1809,6 +2123,15 @@ def live_dashboard() -> HTMLResponse:
       const customerLocation = document.getElementById("customerLocation").value || "Marathahalli";
       const segment = document.getElementById("segment").value || "residential";
       const budget = parseInt(document.getElementById("budget").value) || null;
+      const segmentLabelEl = document.getElementById("segmentLabel");
+      const customerLocationLabelEl = document.getElementById("customerLocationLabel");
+      const analysisLocationLabelEl = document.getElementById("analysisLocationLabel");
+      const analysisSegmentLabelEl = document.getElementById("analysisSegmentLabel");
+      const distanceValueEl = document.getElementById("distanceValue");
+      const marketRateValueEl = document.getElementById("marketRateValue");
+      const demandBadgeEl = document.getElementById("demandBadge");
+      const maxAreaValueEl = document.getElementById("maxAreaValue");
+      const comparableLocationsListEl = document.getElementById("comparableLocationsList");
       
       const payload = {
         location,
@@ -1827,40 +2150,63 @@ def live_dashboard() -> HTMLResponse:
           console.log("[MARKET_ANALYSIS] Data received:", data);
           
           // Update segment and location labels
-          document.getElementById("segmentLabel").textContent = data.segment.charAt(0).toUpperCase() + data.segment.slice(1);
-          document.getElementById("customerLocationLabel").textContent = data.customer_location;
-          document.getElementById("analysisLocationLabel").textContent = data.location;
-          document.getElementById("analysisSegmentLabel").textContent = data.segment.charAt(0).toUpperCase() + data.segment.slice(1);
+          if (segmentLabelEl) segmentLabelEl.textContent = data.segment.charAt(0).toUpperCase() + data.segment.slice(1);
+          if (customerLocationLabelEl) customerLocationLabelEl.textContent = data.customer_location;
+          if (analysisLocationLabelEl) analysisLocationLabelEl.textContent = data.location;
+          if (analysisSegmentLabelEl) analysisSegmentLabelEl.textContent = data.segment.charAt(0).toUpperCase() + data.segment.slice(1);
           
+          const comparableEntries = Object.entries(data.comparable_locations || {}).filter(([, info]) => (
+            Number.isFinite(Number(info?.avg_price_per_sqft)) && Number.isFinite(Number(info?.distance_km))
+          ));
+          const marketRate = Number(data.market_rate?.avg_price_per_sqft || 0);
+          const currentDistance = Number(data.distance_km || 0);
+          const safeBudget = Number(data.budget_analysis?.budget || 0);
+          const demandText = String(data.market_rate?.demand || "unknown");
+          const demandClass = demandText.toLowerCase().replace(/_/g, "-");
+
+          function formatInr(value) {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric) || numeric <= 0) {
+              return "-";
+            }
+            return "Rs " + Math.round(numeric).toLocaleString("en-IN");
+          }
+
+          function formatArea(value) {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric) || numeric <= 0) {
+              return "-";
+            }
+            return numeric.toLocaleString("en-IN", { maximumFractionDigits: 1 }) + " sq.ft";
+          }
+
           // Update key metrics
-          document.getElementById("distanceValue").textContent = data.distance_km.toFixed(1);
-          document.getElementById("marketRateValue").textContent = "₹" + data.market_rate.avg_price_per_sqft.toLocaleString();
+          if (distanceValueEl) distanceValueEl.textContent = currentDistance.toLocaleString("en-IN", { maximumFractionDigits: 1 });
+          if (marketRateValueEl) marketRateValueEl.textContent = formatInr(marketRate);
           
-          const demandBadge = document.getElementById("demandBadge");
-          const demand = data.market_rate.demand.toLowerCase().replace(/_/g, "_");
-          demandBadge.innerHTML = `<span class="demand-badge demand-${demand}" style="text-transform: capitalize;">${data.market_rate.demand.replace(/_/g, " ")}</span>`;
+          if (demandBadgeEl) {
+            demandBadgeEl.innerHTML = `<span class="demand-badge demand-${demandClass}" style="text-transform: capitalize;">${demandText.replace(/_/g, " ")}</span>`;
+          }
           
           if (data.budget_analysis.max_affordable_area_sqft) {
-            document.getElementById("maxAreaValue").textContent = data.budget_analysis.max_affordable_area_sqft.toLocaleString() + " sq.ft";
+            if (maxAreaValueEl) maxAreaValueEl.textContent = formatArea(data.budget_analysis.max_affordable_area_sqft);
           } else {
-            document.getElementById("maxAreaValue").textContent = "-";
+            if (maxAreaValueEl) maxAreaValueEl.textContent = "-";
           }
           
           // Render comparable locations chart
-          if (marketCtx && data.comparable_locations) {
-            const locations = [];
-            const rates = [];
-            const distances = [];
-            
-            Object.entries(data.comparable_locations).forEach(([loc, info]) => {
-              locations.push(loc);
-              rates.push(info.avg_price_per_sqft);
-              distances.push(info.distance_km);
-            });
-            
-            if (marketChartInstance) {
-              marketChartInstance.destroy();
-            }
+          if (marketChartInstance) {
+            marketChartInstance.destroy();
+            marketChartInstance = null;
+          }
+
+          if (marketCtx && comparableEntries.length) {
+            const points = comparableEntries.map(([loc, info]) => ({
+              x: Number(info.distance_km),
+              y: Number(info.avg_price_per_sqft),
+              r: 11,
+              location: loc
+            }));
             
             marketChartInstance = new Chart(marketCtx, {
               type: "bubble",
@@ -1868,11 +2214,7 @@ def live_dashboard() -> HTMLResponse:
                 datasets: [
                   {
                     label: "Comparable Locations (Price vs Distance)",
-                    data: locations.map((loc, idx) => ({
-                      x: distances[idx],
-                      y: rates[idx],
-                      r: 15
-                    })),
+                    data: points,
                     backgroundColor: "rgba(13, 124, 102, 0.6)",
                     borderColor: "rgba(13, 124, 102, 1)",
                     borderWidth: 2
@@ -1890,9 +2232,8 @@ def live_dashboard() -> HTMLResponse:
                     enabled: true,
                     callbacks: {
                       label: function(context) {
-                        const idx = context.dataIndex;
-                        const loc = locations[idx];
-                        return loc + " - ₹" + rates[idx] + "/sqft @ " + distances[idx] + " km";
+                        const point = points[context.dataIndex];
+                        return point.location + " - " + formatInr(point.y) + "/sqft @ " + point.x.toLocaleString("en-IN", { maximumFractionDigits: 1 }) + " km";
                       }
                     }
                   }
@@ -1909,7 +2250,7 @@ def live_dashboard() -> HTMLResponse:
                   y: {
                     title: {
                       display: true,
-                      text: "Market Rate (₹/sqft)"
+                      text: "Market Rate (Rs/sqft)"
                     },
                     min: 0,
                     grid: { color: "rgba(31, 44, 45, 0.08)" }
@@ -1920,8 +2261,8 @@ def live_dashboard() -> HTMLResponse:
           }
           
           // Render comparable locations list sorted by distance
-          const sortedLocations = Object.entries(data.comparable_locations)
-            .sort(([,a], [,b]) => a.distance_km - b.distance_km);
+          const sortedLocations = comparableEntries
+            .sort(([,a], [,b]) => Number(a.distance_km) - Number(b.distance_km));
           
           const listHtml = sortedLocations
             .map(([loc, info]) => {
@@ -1932,23 +2273,30 @@ def live_dashboard() -> HTMLResponse:
                 'low': '#9e9e9e'
               }[info.demand.toLowerCase()] || '#9e9e9e';
               
-              const affordability = data.budget_analysis.max_affordable_area_sqft 
-                ? ((data.budget_analysis.max_affordable_area_sqft * info.avg_price_per_sqft) / data.budget_analysis.budget * 100).toFixed(0)
+              const affordableAreaAtLocation = safeBudget && Number(info.avg_price_per_sqft)
+                ? safeBudget / Number(info.avg_price_per_sqft)
+                : null;
+              const priceDelta = marketRate
+                ? (((Number(info.avg_price_per_sqft) - marketRate) / marketRate) * 100)
                 : null;
               
-              const affordabilityText = affordability 
-                ? affordability + '% of budget'  
-                : 'Budget: N/A';
+              const affordabilityText = affordableAreaAtLocation 
+                ? "Affordable area: " + formatArea(affordableAreaAtLocation)
+                : "Budget: N/A";
+              const deltaText = Number.isFinite(priceDelta)
+                ? (priceDelta >= 0 ? "+" : "") + priceDelta.toFixed(1) + "% vs selected market"
+                : "No comparison available";
               
               return `
                 <div class="location-row" style="border-left: 4px solid ${demandColor};">
                   <div class="location-name">${loc}</div>
                   <div class="location-segment-info">
                     <strong>${data.segment.charAt(0).toUpperCase() + data.segment.slice(1)}</strong> | 
-                    ₹${info.avg_price_per_sqft.toLocaleString()}/sqft
+                    ${formatInr(info.avg_price_per_sqft)}/sqft
                   </div>
-                  <div class="location-distance">${info.distance_km} km</div>
+                  <div class="location-distance">${Number(info.distance_km).toLocaleString("en-IN", { maximumFractionDigits: 1 })} km</div>
                   <div class="location-affordability">${affordabilityText}</div>
+                  <div class="location-affordability">${deltaText}</div>
                   <div class="location-demand" style="background: ${demandColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">
                     ${info.demand.replace(/_/g, ' ').toUpperCase()}
                   </div>
@@ -1957,14 +2305,27 @@ def live_dashboard() -> HTMLResponse:
             })
             .join("");
           
-          document.getElementById("comparableLocationsList").innerHTML = listHtml || "<p>No comparable locations found.</p>";
+          if (comparableLocationsListEl) {
+            comparableLocationsListEl.innerHTML = listHtml || "<p>No comparable locations found for the current location and segment.</p>";
+          }
         })
-        .catch((error) => console.error("[MARKET_ANALYSIS] Error fetching data:", error));
+        .catch((error) => {
+          console.error("[MARKET_ANALYSIS] Error fetching data:", error);
+          if (distanceValueEl) distanceValueEl.textContent = "-";
+          if (marketRateValueEl) marketRateValueEl.textContent = "-";
+          if (maxAreaValueEl) maxAreaValueEl.textContent = "-";
+          if (demandBadgeEl) demandBadgeEl.innerHTML = '<span class="demand-badge demand-medium">Unavailable</span>';
+          if (comparableLocationsListEl) comparableLocationsListEl.innerHTML = "<p>Market analysis is temporarily unavailable.</p>";
+          if (marketChartInstance) {
+            marketChartInstance.destroy();
+            marketChartInstance = null;
+          }
+        });
     }
 
     function resetCabPanel() {
       cabStatusList.innerHTML = `
-        <div class="cab-status-item"><span class="label">Cab Eligibility</span><span class="value">Awaiting residential lead</span></div>
+        <div class="cab-status-item"><span class="label">Cab Eligibility</span><span class="value">Awaiting lead</span></div>
         <div class="cab-status-item"><span class="label">Builder Approval</span><span class="value">Not checked</span></div>
         <div class="cab-status-item"><span class="label">Pickup Eligibility</span><span class="value">Not checked</span></div>
         <div class="cab-status-item"><span class="label">Drop Eligibility</span><span class="value">Not checked</span></div>
@@ -1975,7 +2336,7 @@ def live_dashboard() -> HTMLResponse:
         <div class="cab-status-item"><span class="label">SMS Notification</span><span class="value">Pending</span></div>
         <div class="cab-status-item"><span class="label">WhatsApp Notification</span><span class="value">Pending</span></div>
       `;
-      cabMessage.textContent = "Run a residential lead to see the cab operations flow.";
+      cabMessage.textContent = "Waiting for lead data to be submitted.";
     }
 
     function setCabStatus(label, value, tone = "") {
@@ -2431,16 +2792,7 @@ def live_dashboard() -> HTMLResponse:
           settled = true;
           if (recognitionTimeout) clearTimeout(recognitionTimeout);
           const code = event.error || "speech_error";
-          if ((code === "no-speech" || code === "audio-capture") && retries > 0) {
-            voiceLog.textContent = "I did not catch that. Trying once more...";
-            resolve(waitForSpeech(promptText, { retries: retries - 1, spokenPrompt, timeoutMs, allowSkip, emptyValue }));
-            return;
-          }
-          if ((code === "no-speech" || code === "audio-capture") && allowSkip) {
-            voiceLog.textContent = "No response captured. Marked as not required.";
-            resolve(emptyValue);
-            return;
-          }
+          // NO RETRIES - Always go to fallback immediately
           reject(new Error(code));
         };
         recognition.onend = () => {
@@ -2461,11 +2813,7 @@ def live_dashboard() -> HTMLResponse:
             return;
           }
           if (!settled) {
-            if (retries > 0) {
-              voiceLog.textContent = "No speech captured. Trying again, please speak after the prompt.";
-              resolve(waitForSpeech(promptText, { retries: retries - 1, spokenPrompt, timeoutMs, allowSkip, emptyValue }));
-              return;
-            }
+            // NO RETRIES - Immediately reject and go to fallback
             if (allowSkip) {
               voiceLog.textContent = "No response captured. Marked as not required.";
               resolve(emptyValue);
@@ -2503,8 +2851,8 @@ def live_dashboard() -> HTMLResponse:
       const { allowSkip = false, emptyValue = "" } = options;
       
       try {
-        // First try voice input with retries
-        return await waitForSpeech(promptText, { retries: 1, timeoutMs: 4000, allowSkip, emptyValue });
+        // Single attempt voice input WITH spoken prompt, then fallback if no speech
+        return await waitForSpeech(promptText, { retries: 0, spokenPrompt: true, timeoutMs: 3000, allowSkip, emptyValue });
       } catch (voiceError) {
         // Voice input failed, show text fallback
         return new Promise((resolve) => {
@@ -2652,13 +3000,33 @@ def live_dashboard() -> HTMLResponse:
         document.getElementById("inquiry").value = cleanSpokenText(inquiry);
         applyVoiceIntelligence();
         document.getElementById("leadId").value = `voice_${segmentSelect.value}_${Date.now()}`;
+        
         const finalMessage = "Thank you for the answers. I have captured the lead details and I am starting the workflow now.";
         voiceLog.textContent = finalMessage;
         playBeep(720, 150);
-        await new Promise((resolve) => speak(finalMessage, { onend: resolve }));
+        
+        // Wait for speech to complete, then start workflow
+        await new Promise((resolve) => {
+          const utterance = new SpeechSynthesisUtterance(finalMessage);
+          utterance.voice = preferredVoice();
+          utterance.rate = 0.98;
+          utterance.onend = resolve;
+          utterance.onerror = resolve; // Resolve even on error to continue workflow
+          window.speechSynthesis.speak(utterance);
+        });
+        
+        // Add small delay to ensure UI is ready
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Now execute the workflow
+        voiceLog.textContent = "Submitting lead to workflow engine...";
         await runManualLead();
+        voiceLog.textContent = "Workflow completed. Check the lead cards above for status updates.";
       } catch (error) {
+        console.error("Voice intake error:", error);
         voiceLog.textContent = `Voice intake stopped: ${error.message}`;
+        window.voiceIntakeInProgress = false;
+        throw error;
       } finally {
         window.voiceIntakeInProgress = false;
       }
@@ -2729,6 +3097,16 @@ def live_dashboard() -> HTMLResponse:
               customer_location: document.getElementById("customerLocation").value
             });
             renderLeadCard(event.lead_id);
+            
+            // Update cab panel when lead is received to show segment type
+            const lead = leads.get(event.lead_id);
+            if (lead.segment === "commercial") {
+              setCabStatus("Cab Eligibility", "Commercial lead - Cab operations N/A", "bad");
+              cabMessage.textContent = "Cab operations are only shown for residential leads. This is a commercial lead.";
+            } else {
+              setCabStatus("Cab Eligibility", "Awaiting builder approval", "active");
+              cabMessage.textContent = "Processing residential lead for cab availability...";
+            }
           }
 
           if (event.event === "lead_step") {
@@ -2741,7 +3119,8 @@ def live_dashboard() -> HTMLResponse:
             }
             leads.set(event.lead_id, lead);
             renderLeadCard(event.lead_id);
-            updateCabPanelFromPayload(event.payload, lead);
+            // Skip cab panel updates during stream - will show summary at the end
+            // updateCabPanelFromPayload(event.payload, lead);
           }
 
           if (event.event === "lead_completed") {
@@ -2788,7 +3167,67 @@ def live_dashboard() -> HTMLResponse:
           }
 
           if (event.event === "run_completed") {
-            statusText.textContent = `Completed ${event.payload.processed_leads} simulated leads.`;
+            // Calculate final summary
+            let scheduledVisits = 0;
+            let dealsClosed = 0;
+            let coldLeads = 0;
+            let ignoredLeads = 0;
+            let totalLeads = 0;
+            
+            leads.forEach((lead) => {
+              totalLeads++;
+              const stage = (lead.final_stage || lead.stage || "").toLowerCase();
+              
+              if (stage.includes("visit") || stage.includes("scheduled") || stage.includes("appointment")) {
+                scheduledVisits++;
+              } else if (stage.includes("deal") || stage.includes("closed") || stage.includes("purchased")) {
+                dealsClosed++;
+              } else if (stage.includes("cold") || stage.includes("dropped")) {
+                coldLeads++;
+              } else if (stage === "" || stage.includes("ignore")) {
+                ignoredLeads++;
+              }
+            });
+            
+            // Display final summary
+            const summary = `
+              <div style="margin-top: 20px; padding: 16px; background: #f0f8f5; border-radius: 8px; border-left: 4px solid #0d7c66;">
+                <h3 style="margin-top: 0; color: #0d7c66;">📊 Campaign Execution Summary</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+                  <div style="background: white; padding: 12px; border-radius: 6px;">
+                    <div style="font-size: 12px; color: #666;">Total Leads Processed</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #0d7c66;">${totalLeads}</div>
+                  </div>
+                  <div style="background: white; padding: 12px; border-radius: 6px;">
+                    <div style="font-size: 12px; color: #666;">Scheduled for Site Visit</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #2196F3;">${scheduledVisits}</div>
+                  </div>
+                  <div style="background: white; padding: 12px; border-radius: 6px;">
+                    <div style="font-size: 12px; color: #666;">Deals Closed</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #4CAF50;">${dealsClosed}</div>
+                  </div>
+                  <div style="background: white; padding: 12px; border-radius: 6px;">
+                    <div style="font-size: 12px; color: #666;">Cold/Ignored Leads</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #FF6B6B;">${coldLeads + ignoredLeads}</div>
+                  </div>
+                </div>
+                <div style="margin-top: 12px; font-size: 12px; color: #666;">
+                  <strong>Conversion Rate:</strong> ${totalLeads > 0 ? ((dealsClosed / totalLeads) * 100).toFixed(1) : 0}% deals closed • ${totalLeads > 0 ? ((scheduledVisits / totalLeads) * 100).toFixed(1) : 0}% visits scheduled
+                </div>
+              </div>
+            `;
+            
+            const summaryDiv = document.createElement("div");
+            summaryDiv.innerHTML = summary;
+            statusText.parentElement.insertBefore(summaryDiv, statusText.nextSibling);
+            
+            statusText.textContent = `✓ Completed ${event.payload.processed_leads} simulated leads.`;
+            
+            // Narrate the final summary (matching visual summary order)
+            const summaryNarration = `Campaign execution completed. Total leads processed: ${totalLeads}. Scheduled for site visit: ${scheduledVisits}. Deals closed: ${dealsClosed}. Cold and ignored leads: ${coldLeads + ignoredLeads}. Conversion rate: ${totalLeads > 0 ? ((dealsClosed / totalLeads) * 100).toFixed(1) : 0}% deals closed and ${totalLeads > 0 ? ((scheduledVisits / totalLeads) * 100).toFixed(1) : 0}% visits scheduled.`;
+            speak(summaryNarration);
+            voiceLog.textContent = summaryNarration;
+            
             fetchAndRenderFunnelChart();
           }
         }
@@ -2802,6 +3241,12 @@ def live_dashboard() -> HTMLResponse:
     async function startStream() {
       resetBoards();
       statusText.textContent = "Streaming default CRM traffic...";
+      
+      // Announce execution start
+      const startMessage = "Starting campaign execution. Processing simulated leads through our real estate pipeline.";
+      speak(startMessage);
+      voiceLog.textContent = startMessage;
+      
       const response = await fetch("/simulate/live/stream?delay_seconds=0.35");
       await consumeStream(response);
     }
@@ -2809,6 +3254,12 @@ def live_dashboard() -> HTMLResponse:
     async function runManualLead() {
       resetBoards();
       statusText.textContent = "Streaming manual lead...";
+      
+      // Announce manual lead execution
+      const manualStartMessage = "Processing your manual lead through the pipeline.";
+      speak(manualStartMessage);
+      voiceLog.textContent = manualStartMessage;
+      
       const response = await fetch("/simulate/live/stream?delay_seconds=0.35", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2817,14 +3268,14 @@ def live_dashboard() -> HTMLResponse:
       await consumeStream(response);
     }
 
-    startButton.addEventListener("click", startStream);
-    submitManualButton.addEventListener("click", runManualLead);
-    loadDefaultButton.addEventListener("click", loadWhitefieldExample);
-    loadCommercialButton.addEventListener("click", loadCommercialExample);
-    segmentSelect.addEventListener("change", syncSegmentFields);
-    startVoiceIntakeButton.addEventListener("click", startVoiceIntake);
-    dictateInquiryButton.addEventListener("click", dictateInquiry);
-    playLatestCallButton.addEventListener("click", playLatestCall);
+    if (startButton) startButton.addEventListener("click", startStream);
+    if (submitManualButton) submitManualButton.addEventListener("click", runManualLead);
+    if (loadDefaultButton) loadDefaultButton.addEventListener("click", loadWhitefieldExample);
+    if (loadCommercialButton) loadCommercialButton.addEventListener("click", loadCommercialExample);
+    if (segmentSelect) segmentSelect.addEventListener("change", syncSegmentFields);
+    if (startVoiceIntakeButton) startVoiceIntakeButton.addEventListener("click", startVoiceIntake);
+    if (dictateInquiryButton) dictateInquiryButton.addEventListener("click", dictateInquiry);
+    if (playLatestCallButton) playLatestCallButton.addEventListener("click", playLatestCall);
     
     // Builder search functionality
     const searchBuildersButton = document.getElementById("searchBuildersButton");
@@ -2908,6 +3359,7 @@ def live_dashboard() -> HTMLResponse:
     }
     loadWhitefieldExample();
     fetchAndRenderMarketAnalysis();
+    fetchAndRenderFunnelChart();  // Load initial funnel chart data
   </script>
 </body>
 </html>
