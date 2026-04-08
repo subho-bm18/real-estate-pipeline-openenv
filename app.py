@@ -35,6 +35,54 @@ funnel_metrics = {
 }
 lead_stages: dict[str, str] = {}  # Track each lead's current stage
 
+# Market analysis data by location
+market_data = {
+    "Whitefield": {
+        "residential": {"avg_price_per_sqft": 6500, "price_range": (5500, 7500), "demand": "high"},
+        "commercial": {"avg_price_per_sqft": 8200, "price_range": (7000, 9500), "demand": "medium"}
+    },
+    "Marathahalli": {
+        "residential": {"avg_price_per_sqft": 5800, "price_range": (5000, 6800), "demand": "high"},
+        "commercial": {"avg_price_per_sqft": 7500, "price_range": (6500, 8800), "demand": "medium"}
+    },
+    "Sarjapur": {
+        "residential": {"avg_price_per_sqft": 4500, "price_range": (3800, 5200), "demand": "medium"},
+        "commercial": {"avg_price_per_sqft": 6000, "price_range": (5200, 7000), "demand": "low"}
+    },
+    "Indiranagar": {
+        "residential": {"avg_price_per_sqft": 7200, "price_range": (6500, 8500), "demand": "very_high"},
+        "commercial": {"avg_price_per_sqft": 9500, "price_range": (8500, 11000), "demand": "high"}
+    },
+    "Koramangala": {
+        "residential": {"avg_price_per_sqft": 8500, "price_range": (7500, 10000), "demand": "very_high"},
+        "commercial": {"avg_price_per_sqft": 11000, "price_range": (10000, 13000), "demand": "high"}
+    },
+    "HSR Layout": {
+        "residential": {"avg_price_per_sqft": 7800, "price_range": (7000, 9000), "demand": "high"},
+        "commercial": {"avg_price_per_sqft": 10000, "price_range": (9000, 12000), "demand": "medium"}
+    },
+    "MG Road": {
+        "residential": {"avg_price_per_sqft": 9200, "price_range": (8500, 11000), "demand": "very_high"},
+        "commercial": {"avg_price_per_sqft": 13000, "price_range": (12000, 15000), "demand": "very_high"}
+    },
+    "CBD Retail District": {
+        "residential": {"avg_price_per_sqft": 7500, "price_range": (6800, 8800), "demand": "high"},
+        "commercial": {"avg_price_per_sqft": 14000, "price_range": (12000, 16000), "demand": "very_high"}
+    }
+}
+
+# Distance data (in km) between locations
+distance_matrix = {
+    "Whitefield": {"Marathahalli": 8.5, "Sarjapur": 12, "Indiranagar": 7, "Koramangala": 9.5, "HSR Layout": 11, "MG Road": 10, "CBD Retail District": 14},
+    "Marathahalli": {"Whitefield": 8.5, "Sarjapur": 6, "Indiranagar": 4, "Koramangala": 7, "HSR Layout": 5, "MG Road": 5.5, "CBD Retail District": 9},
+    "Sarjapur": {"Whitefield": 12, "Marathahalli": 6, "Indiranagar": 8, "Koramangala": 10, "HSR Layout": 9, "MG Road": 11, "CBD Retail District": 13},
+    "Indiranagar": {"Whitefield": 7, "Marathahalli": 4, "Sarjapur": 8, "Koramangala": 3.5, "HSR Layout": 2, "MG Road": 1.5, "CBD Retail District": 5},
+    "Koramangala": {"Whitefield": 9.5, "Marathahalli": 7, "Sarjapur": 10, "Indiranagar": 3.5, "HSR Layout": 4, "MG Road": 1.5, "CBD Retail District": 3},
+    "HSR Layout": {"Whitefield": 11, "Marathahalli": 5, "Sarjapur": 9, "Indiranagar": 2, "Koramangala": 4, "MG Road": 3, "CBD Retail District": 6},
+    "MG Road": {"Whitefield": 10, "Marathahalli": 5.5, "Sarjapur": 11, "Indiranagar": 1.5, "Koramangala": 1.5, "HSR Layout": 3, "CBD Retail District": 2},
+    "CBD Retail District": {"Whitefield": 14, "Marathahalli": 9, "Sarjapur": 13, "Indiranagar": 5, "Koramangala": 3, "HSR Layout": 6, "MG Road": 2}
+}
+
 
 class ResetRequest(BaseModel):
     task_id: str | None = None
@@ -103,6 +151,61 @@ def get_funnel_metrics() -> dict[str, object]:
             "deal_closed_rate": round((funnel_metrics["deal_closed"] / max(funnel_metrics["engaged"], 1)) * 100, 1),
             "purchased_rate": round((funnel_metrics["purchased"] / max(funnel_metrics["deal_closed"], 1)) * 100, 1),
         }
+    }
+
+
+@app.post("/market-analysis")
+def market_analysis(request: dict | None = None) -> dict[str, object]:
+    """Returns market analysis and distance data based on location and segment"""
+    location = request.get("location", "Whitefield") if request else "Whitefield"
+    customer_location = request.get("customer_location", "Marathahalli") if request else "Marathahalli"
+    segment = request.get("segment", "residential") if request else "residential"
+    budget = request.get("budget") if request else None
+    
+    # Get market data for the location
+    market_info = market_data.get(location, market_data["Whitefield"])
+    segment_data = market_info.get(segment, market_info.get("residential", {}))
+    
+    # Get distance between locations
+    distance = distance_matrix.get(customer_location, {}).get(location, 5.0)
+    
+    # Calculate affordable price range based on budget and market rates
+    avg_price_per_sqft = segment_data.get("avg_price_per_sqft", 6500)
+    market_range = segment_data.get("price_range", (5000, 8000))
+    
+    # Calculate max affordable area if budget is provided
+    max_affordable_area = None
+    if budget:
+        max_affordable_area = budget / avg_price_per_sqft
+    
+    # Get comparable locations and their market rates
+    comparable_locations = {}
+    for loc, data in market_data.items():
+        if loc != location:
+            loc_segment_data = data.get(segment, data.get("residential", {}))
+            distance_to_loc = distance_matrix.get(customer_location, {}).get(loc, 0)
+            comparable_locations[loc] = {
+                "avg_price_per_sqft": loc_segment_data.get("avg_price_per_sqft", 0),
+                "demand": loc_segment_data.get("demand", "unknown"),
+                "distance_km": distance_to_loc
+            }
+    
+    return {
+        "location": location,
+        "segment": segment,
+        "customer_location": customer_location,
+        "distance_km": distance,
+        "market_rate": {
+            "avg_price_per_sqft": avg_price_per_sqft,
+            "price_range": market_range,
+            "demand": segment_data.get("demand", "medium")
+        },
+        "budget_analysis": {
+            "budget": budget,
+            "max_affordable_area_sqft": round(max_affordable_area, 1) if max_affordable_area else None,
+            "price_vs_market": round((budget / (avg_price_per_sqft * 1500) * 100) - 100, 1) if budget else None
+        },
+        "comparable_locations": comparable_locations
     }
 
 
@@ -646,8 +749,107 @@ def live_dashboard() -> HTMLResponse:
       font-size: 0.85rem;
       color: var(--muted);
     }
+    .market-analysis-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+    .market-chart-container {
+      position: relative;
+      width: 100%;
+      height: 380px;
+      margin-bottom: 18px;
+    }
+    .market-metrics-panel {
+      display: grid;
+      gap: 12px;
+    }
+    .metric-card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      background: rgba(216, 239, 232, 0.4);
+      border-left: 4px solid var(--accent);
+    }
+    .metric-label {
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+    .metric-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .metric-subtext {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .comparable-locations {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+      margin-bottom: 24px;
+    }
+    .location-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      background: rgba(255, 255, 255, 0.72);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      align-items: center;
+    }
+    .location-name {
+      font-weight: 700;
+      color: var(--ink);
+    }
+    .location-rate {
+      color: var(--accent);
+      font-size: 0.95rem;
+    }
+    .location-distance {
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-align: right;
+    }
+    .demand-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .demand-very_high {
+      background: #fdd835;
+      color: #333;
+    }
+    .demand-high {
+      background: #4caf50;
+      color: white;
+    }
+    .demand-medium {
+      background: #2196f3;
+      color: white;
+    }
+    .demand-low {
+      background: #9e9e9e;
+      color: white;
+    }
     @media (max-width: 900px) {
       .grid { grid-template-columns: 1fr; }
+      .market-analysis-grid { grid-template-columns: 1fr; }
+      .location-row { grid-template-columns: 1fr; }
       h1 { max-width: none; }
       .form-grid { grid-template-columns: 1fr; }
     }
@@ -697,6 +899,40 @@ def live_dashboard() -> HTMLResponse:
           </div>
         </div>
       </div>
+    </div>
+    <div class="market-analysis-grid">
+      <div class="chart-section">
+        <h2>Market Analysis & Comparable Locations</h2>
+        <div class="market-chart-container">
+          <canvas id="marketChart"></canvas>
+        </div>
+      </div>
+      <div class="market-metrics-panel">
+        <h2 style="margin: 0 0 12px;">Key Metrics</h2>
+        <div class="metric-card">
+          <div class="metric-label">Distance to Site</div>
+          <div class="metric-value" id="distanceValue">-</div>
+          <div class="metric-subtext">km from customer location</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Avg Market Rate</div>
+          <div class="metric-value" id="marketRateValue">-</div>
+          <div class="metric-subtext">per sq.ft in this area</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Market Demand</div>
+          <div id="demandBadge" style="margin-top: 8px;"></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Max Affordable Area</div>
+          <div class="metric-value" id="maxAreaValue">-</div>
+          <div class="metric-subtext">based on your budget</div>
+        </div>
+      </div>
+    </div>
+    <div class="comparable-locations">
+      <h2>Comparable Locations in Your Segment</h2>
+      <div id="comparableLocationsList"></div>
     </div>
     <div class="grid">
       <section>
@@ -842,6 +1078,10 @@ def live_dashboard() -> HTMLResponse:
     let funnelChartInstance = null;
     const funnelCtx = document.getElementById("funnelChart")?.getContext("2d");
 
+    // Market analysis chart variables
+    let marketChartInstance = null;
+    const marketCtx = document.getElementById("marketChart")?.getContext("2d");
+
     function renderLeadCard(leadId) {
       const lead = leads.get(leadId);
       if (!lead) return;
@@ -961,6 +1201,134 @@ def live_dashboard() -> HTMLResponse:
           }
         })
         .catch((error) => console.error("[FUNNEL_CHART] Error fetching metrics:", error));
+    }
+
+    function fetchAndRenderMarketAnalysis() {
+      const location = document.getElementById("location").value || "Whitefield";
+      const customerLocation = document.getElementById("customerLocation").value || "Marathahalli";
+      const segment = document.getElementById("segment").value || "residential";
+      const budget = parseInt(document.getElementById("budget").value) || null;
+      
+      const payload = {
+        location,
+        customer_location: customerLocation,
+        segment,
+        budget
+      };
+      
+      fetch("/market-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          console.log("[MARKET_ANALYSIS] Data received:", data);
+          
+          // Update key metrics
+          document.getElementById("distanceValue").textContent = data.distance_km.toFixed(1);
+          document.getElementById("marketRateValue").textContent = "₹" + data.market_rate.avg_price_per_sqft.toLocaleString();
+          
+          const demandBadge = document.getElementById("demandBadge");
+          const demand = data.market_rate.demand.toLowerCase().replace(/_/g, "_");
+          demandBadge.innerHTML = `<span class="demand-badge demand-${demand}" style="text-transform: capitalize;">${data.market_rate.demand.replace(/_/g, " ")}</span>`;
+          
+          if (data.budget_analysis.max_affordable_area_sqft) {
+            document.getElementById("maxAreaValue").textContent = data.budget_analysis.max_affordable_area_sqft.toLocaleString() + " sq.ft";
+          } else {
+            document.getElementById("maxAreaValue").textContent = "-";
+          }
+          
+          // Render comparable locations chart
+          if (marketCtx && data.comparable_locations) {
+            const locations = [];
+            const rates = [];
+            const distances = [];
+            
+            Object.entries(data.comparable_locations).forEach(([loc, info]) => {
+              locations.push(loc);
+              rates.push(info.avg_price_per_sqft);
+              distances.push(info.distance_km);
+            });
+            
+            if (marketChartInstance) {
+              marketChartInstance.destroy();
+            }
+            
+            marketChartInstance = new Chart(marketCtx, {
+              type: "bubble",
+              data: {
+                datasets: [
+                  {
+                    label: "Comparable Locations (Price vs Distance)",
+                    data: locations.map((loc, idx) => ({
+                      x: distances[idx],
+                      y: rates[idx],
+                      r: 15
+                    })),
+                    backgroundColor: "rgba(13, 124, 102, 0.6)",
+                    borderColor: "rgba(13, 124, 102, 1)",
+                    borderWidth: 2
+                  }
+                ]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    display: false
+                  },
+                  tooltip: {
+                    enabled: true,
+                    callbacks: {
+                      label: function(context) {
+                        const idx = context.dataIndex;
+                        const loc = locations[idx];
+                        return loc + " - ₹" + rates[idx] + "/sqft @ " + distances[idx] + " km";
+                      }
+                    }
+                  }
+                },
+                scales: {
+                  x: {
+                    title: {
+                      display: true,
+                      text: "Distance from Customer Location (km)"
+                    },
+                    min: 0,
+                    grid: { color: "rgba(31, 44, 45, 0.08)" }
+                  },
+                  y: {
+                    title: {
+                      display: true,
+                      text: "Market Rate (₹/sqft)"
+                    },
+                    min: 0,
+                    grid: { color: "rgba(31, 44, 45, 0.08)" }
+                  }
+                }
+              }
+            });
+          }
+          
+          // Render comparable locations list
+          const listHtml = Object.entries(data.comparable_locations)
+            .map(([loc, info]) => {
+              const demandClass = `demand-${info.demand.toLowerCase().replace(/_/g, "_")}`;
+              return `
+                <div class="location-row">
+                  <div class="location-name">${loc}</div>
+                  <div class="location-rate">₹${info.avg_price_per_sqft.toLocaleString()}/sqft</div>
+                  <div class="location-distance">${info.distance_km} km away</div>
+                </div>
+              `;
+            })
+            .join("");
+          
+          document.getElementById("comparableLocationsList").innerHTML = listHtml || "<p>No comparable locations found.</p>";
+        })
+        .catch((error) => console.error("[MARKET_ANALYSIS] Error fetching data:", error));
     }
 
     function resetCabPanel() {
@@ -1667,6 +2035,21 @@ def live_dashboard() -> HTMLResponse:
     startVoiceIntakeButton.addEventListener("click", startVoiceIntake);
     dictateInquiryButton.addEventListener("click", dictateInquiry);
     playLatestCallButton.addEventListener("click", playLatestCall);
+    
+    // Market analysis listeners - update on any form field change
+    const marketAnalysisInputs = [
+      document.getElementById("location"),
+      document.getElementById("customerLocation"),
+      document.getElementById("segment"),
+      document.getElementById("budget")
+    ];
+    marketAnalysisInputs.forEach(input => {
+      if (input) {
+        input.addEventListener("change", fetchAndRenderMarketAnalysis);
+        input.addEventListener("input", fetchAndRenderMarketAnalysis);
+      }
+    });
+    
     if (!recognitionSupported && !playbackSupported) {
       voiceLog.textContent = "Voice features are unavailable in this browser. Use Chrome or Edge for speech recognition.";
     } else if (!recognitionSupported) {
@@ -1675,6 +2058,7 @@ def live_dashboard() -> HTMLResponse:
       voiceLog.textContent = "Voice dictation is available, but speech playback is not supported in this browser.";
     }
     loadWhitefieldExample();
+    fetchAndRenderMarketAnalysis();
   </script>
 </body>
 </html>
