@@ -1398,6 +1398,35 @@ def live_dashboard() -> HTMLResponse:
       color: var(--muted);
       margin-top: 4px;
     }
+    .pipeline-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .pipeline-summary-card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.82);
+    }
+    .pipeline-summary-card strong {
+      display: block;
+      font-size: 1.35rem;
+      color: var(--accent);
+      margin-top: 4px;
+    }
+    .pipeline-summary-label {
+      font-size: 0.82rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .pipeline-summary-subtext {
+      margin-top: 8px;
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
     .comparable-locations {
       border: 1px solid var(--border);
       background: var(--panel);
@@ -1487,6 +1516,7 @@ def live_dashboard() -> HTMLResponse:
       .grid { grid-template-columns: 1fr; }
       .market-analysis-grid { grid-template-columns: 1fr; }
       .location-row { grid-template-columns: 1fr; }
+      .pipeline-summary-grid { grid-template-columns: 1fr; }
       h1 { max-width: none; }
       .form-grid { grid-template-columns: 1fr; }
     }
@@ -1585,6 +1615,55 @@ def live_dashboard() -> HTMLResponse:
       color: var(--ink);
       font-weight: 600;
     }
+    .metrics-snapshot {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .snapshot-card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      background: rgba(255, 255, 255, 0.82);
+    }
+    .snapshot-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+    .snapshot-value {
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1;
+    }
+    .snapshot-note {
+      margin-top: 6px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    .metrics-status {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(216, 239, 232, 0.35);
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    @media (max-width: 900px) {
+      .metrics-snapshot {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    @media (max-width: 560px) {
+      .metrics-snapshot {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -1597,6 +1676,7 @@ def live_dashboard() -> HTMLResponse:
     </div>
     <div class="controls">
       <button id="startButton">Start Stream</button>
+      <button id="resetButton" class="secondary">Reset All Data</button>
       <div class="status" id="statusText">Ready to simulate inbound CRM traffic.</div>
     </div>
     
@@ -1825,18 +1905,41 @@ def live_dashboard() -> HTMLResponse:
       </section>
 
       <section>
-        <h2>⚡ Live Traffic Stream</h2>
-        <div class="sub">Automatically generate and process multiple realistic leads in real-time - click "Start Stream" in the header to begin</div>
-        <div class="form-actions" style="margin-top: 12px;">
-          <button id="resetButton" class="secondary">🔄 Reset All Data</button>
-        </div>
-      </section>
-
-      <section>
         <h2>📊 E2E Sales Pipeline Metrics</h2>
-        <div class="chart-container">
-          <canvas id="funnelChart"></canvas>
+        <div class="sub">This section mirrors the current session totals so you can scan the pipeline without going back to the primary funnel chart.</div>
+        <div class="metrics-snapshot">
+          <div class="snapshot-card">
+            <div class="snapshot-label">Total Leads</div>
+            <div class="snapshot-value" id="miniTotalLeads">0</div>
+            <div class="snapshot-note">Leads received in this session</div>
+          </div>
+          <div class="snapshot-card">
+            <div class="snapshot-label">Contacted</div>
+            <div class="snapshot-value" id="miniContacted">0</div>
+            <div class="snapshot-note">Leads reached by the workflow</div>
+          </div>
+          <div class="snapshot-card">
+            <div class="snapshot-label">Qualified</div>
+            <div class="snapshot-value" id="miniQualified">0</div>
+            <div class="snapshot-note">Leads that passed qualification</div>
+          </div>
+          <div class="snapshot-card">
+            <div class="snapshot-label">Sale Agreement</div>
+            <div class="snapshot-value" id="miniAgreement">0</div>
+            <div class="snapshot-note">Deals in agreement stage</div>
+          </div>
+          <div class="snapshot-card">
+            <div class="snapshot-label">Deals Closed</div>
+            <div class="snapshot-value" id="miniDealsClosed">0</div>
+            <div class="snapshot-note">Closed deals from this run history</div>
+          </div>
+          <div class="snapshot-card">
+            <div class="snapshot-label">Overall Conversion</div>
+            <div class="snapshot-value" id="miniOverallRate">0%</div>
+            <div class="snapshot-note">Leads received to deals closed</div>
+          </div>
         </div>
+        <div class="metrics-status" id="miniMetricsStatus">Waiting for live or manual pipeline activity.</div>
       </section>
 
       <section>
@@ -1903,6 +2006,7 @@ def live_dashboard() -> HTMLResponse:
   <script>
     const startButton = document.getElementById("startButton");
     const statusText = document.getElementById("statusText");
+    const resetButton = document.getElementById("resetButton");
     const leadList = document.getElementById("leadList");
     const eventList = document.getElementById("eventList");
     const cabStatusList = document.getElementById("cabStatusList");
@@ -1921,6 +2025,13 @@ def live_dashboard() -> HTMLResponse:
     const fallbackSubmitButton = document.getElementById("fallbackSubmitButton");
     const fallbackSkipButton = document.getElementById("fallbackSkipButton");
     const fallbackStatus = document.getElementById("fallbackStatus");
+    const miniTotalLeads = document.getElementById("miniTotalLeads");
+    const miniContacted = document.getElementById("miniContacted");
+    const miniQualified = document.getElementById("miniQualified");
+    const miniAgreement = document.getElementById("miniAgreement");
+    const miniDealsClosed = document.getElementById("miniDealsClosed");
+    const miniOverallRate = document.getElementById("miniOverallRate");
+    const miniMetricsStatus = document.getElementById("miniMetricsStatus");
     const leads = new Map();
     const cabVoiceState = new Map();
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1928,6 +2039,7 @@ def live_dashboard() -> HTMLResponse:
     const recognitionSupported = Boolean(SpeechRecognition);
     const playbackSupported = Boolean(window.speechSynthesis);
     let recognitionBusy = false;
+    let summaryCard = null;
 
     // Funnel chart variables
     let funnelChartInstance = null;
@@ -2020,6 +2132,23 @@ def live_dashboard() -> HTMLResponse:
       eventList.prepend(row);
     }
 
+    function updateMiniMetrics(stages = {}, overallRate = 0) {
+      if (miniTotalLeads) miniTotalLeads.textContent = String(stages.leads_received ?? 0);
+      if (miniContacted) miniContacted.textContent = String(stages.contacted ?? 0);
+      if (miniQualified) miniQualified.textContent = String(stages.qualified ?? 0);
+      if (miniAgreement) miniAgreement.textContent = String(stages.sale_agreement_in_process ?? 0);
+      if (miniDealsClosed) miniDealsClosed.textContent = String(stages.deal_closed ?? 0);
+      if (miniOverallRate) miniOverallRate.textContent = `${overallRate}%`;
+
+      if (miniMetricsStatus) {
+        if ((stages.leads_received ?? 0) > 0) {
+          miniMetricsStatus.textContent = `${stages.leads_received} lead(s) tracked in the current session with ${stages.deal_closed ?? 0} deal(s) closed so far.`;
+        } else {
+          miniMetricsStatus.textContent = "Waiting for live or manual pipeline activity.";
+        }
+      }
+    }
+
     function fetchAndRenderFunnelChart() {
       fetch("/metrics/funnel")
         .then((response) => response.json())
@@ -2036,6 +2165,7 @@ def live_dashboard() -> HTMLResponse:
           document.getElementById("rate5").textContent = rates.follow_up_rate + "%";
           document.getElementById("rate6").textContent = rates.deal_closed_rate + "%";
           document.getElementById("overallRate").textContent = overallRate + "%";
+          updateMiniMetrics(stages, overallRate);
           
           // Render funnel chart with all 7 stages
           if (funnelCtx && stages.leads_received > 0) {
@@ -2113,9 +2243,18 @@ def live_dashboard() -> HTMLResponse:
                 }
               }
             });
+          } else if (funnelChartInstance) {
+            funnelChartInstance.destroy();
+            funnelChartInstance = null;
           }
         })
-        .catch((error) => console.error("[FUNNEL_CHART] Error fetching metrics:", error));
+        .catch((error) => {
+          console.error("[FUNNEL_CHART] Error fetching metrics:", error);
+          updateMiniMetrics();
+          if (miniMetricsStatus) {
+            miniMetricsStatus.textContent = "Pipeline metrics are temporarily unavailable.";
+          }
+        });
     }
 
     function fetchAndRenderMarketAnalysis() {
@@ -2465,7 +2604,13 @@ def live_dashboard() -> HTMLResponse:
       eventList.innerHTML = "";
       leads.clear();
       cabVoiceState.clear();
+      if (summaryCard) {
+        summaryCard.remove();
+        summaryCard = null;
+      }
       resetCabPanel();
+      statusText.textContent = "Ready to simulate inbound CRM traffic.";
+      updateMiniMetrics();
       fetchAndRenderFunnelChart();
     }
 
@@ -3217,9 +3362,12 @@ def live_dashboard() -> HTMLResponse:
               </div>
             `;
             
-            const summaryDiv = document.createElement("div");
-            summaryDiv.innerHTML = summary;
-            statusText.parentElement.insertBefore(summaryDiv, statusText.nextSibling);
+            if (summaryCard) {
+              summaryCard.remove();
+            }
+            summaryCard = document.createElement("div");
+            summaryCard.innerHTML = summary;
+            statusText.parentElement.insertBefore(summaryCard, statusText.nextSibling);
             
             statusText.textContent = `✓ Completed ${event.payload.processed_leads} simulated leads.`;
             
@@ -3242,13 +3390,23 @@ def live_dashboard() -> HTMLResponse:
       resetBoards();
       statusText.textContent = "Streaming default CRM traffic...";
       
-      // Announce execution start
       const startMessage = "Starting campaign execution. Processing simulated leads through our real estate pipeline.";
       speak(startMessage);
       voiceLog.textContent = startMessage;
-      
-      const response = await fetch("/simulate/live/stream?delay_seconds=0.35");
-      await consumeStream(response);
+
+      try {
+        const response = await fetch("/simulate/live/stream?delay_seconds=0.35");
+        if (!response.ok || !response.body) {
+          throw new Error(`Live stream request failed with status ${response.status}`);
+        }
+        await consumeStream(response);
+      } catch (error) {
+        console.error("Live stream error:", error);
+        statusText.textContent = "Live stream failed. Please try again.";
+        voiceLog.textContent = `Live stream failed: ${error.message}`;
+        startButton.disabled = false;
+        submitManualButton.disabled = false;
+      }
     }
 
     async function runManualLead() {
@@ -3260,14 +3418,26 @@ def live_dashboard() -> HTMLResponse:
       speak(manualStartMessage);
       voiceLog.textContent = manualStartMessage;
       
-      const response = await fetch("/simulate/live/stream?delay_seconds=0.35", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(manualPayload())
-      });
-      await consumeStream(response);
+      try {
+        const response = await fetch("/simulate/live/stream?delay_seconds=0.35", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(manualPayload())
+        });
+        if (!response.ok || !response.body) {
+          throw new Error(`Manual lead request failed with status ${response.status}`);
+        }
+        await consumeStream(response);
+      } catch (error) {
+        console.error("Manual lead stream error:", error);
+        statusText.textContent = "Manual lead run failed. Please try again.";
+        voiceLog.textContent = `Manual lead run failed: ${error.message}`;
+        startButton.disabled = false;
+        submitManualButton.disabled = false;
+      }
     }
 
+    if (resetButton) resetButton.addEventListener("click", resetBoards);
     if (startButton) startButton.addEventListener("click", startStream);
     if (submitManualButton) submitManualButton.addEventListener("click", runManualLead);
     if (loadDefaultButton) loadDefaultButton.addEventListener("click", loadWhitefieldExample);
