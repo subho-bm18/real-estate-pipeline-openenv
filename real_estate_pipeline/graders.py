@@ -9,9 +9,17 @@ from .policy import (
     stage_alignment_score,
 )
 
+MIN_STRICT_SCORE = 0.0001
+MAX_STRICT_SCORE = 0.9999
+
 
 def _clip(score: float) -> float:
-    return max(0.0, min(1.0, round(score, 4)))
+    rounded = round(score, 4)
+    if rounded <= 0.0:
+        return MIN_STRICT_SCORE
+    if rounded >= 1.0:
+        return MAX_STRICT_SCORE
+    return rounded
 
 
 def grade_task(task: dict[str, Any], state: dict[str, Any]) -> float:

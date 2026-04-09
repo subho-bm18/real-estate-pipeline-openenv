@@ -6,7 +6,7 @@ from typing import Any
 from .cab_booking import book_cab
 from .cab_customer_flow import build_cab_notifications, evaluate_cab_eligibility
 from .call_flow import build_call_script, summarize_call
-from .graders import grade_task
+from .graders import MIN_STRICT_SCORE, grade_task
 from .models import Action, Observation, OpportunityDetail, OpportunitySummary, PropertyRecord, Reward, StepResult
 from .rewards import apply_delta, base_step_penalty, invalid_action_reward
 from .tasks import list_task_ids, load_task
@@ -91,7 +91,7 @@ class RealEstatePipelineEnv:
             "last_action_error": None,
             "requested_fields": [],
             "action_history": [],
-            "grader_score": 0.0,
+            "grader_score": MIN_STRICT_SCORE,
         }
 
     def _build_observation(self) -> Observation:

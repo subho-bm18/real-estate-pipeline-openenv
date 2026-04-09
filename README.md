@@ -86,7 +86,7 @@ It penalizes:
 - unrealistic lease terms
 - unnecessary extra steps
 
-Final task success is measured by deterministic graders in [graders.py](c:\Users\Lenovo\Desktop\Hackathon\openenv-subopt\real_estate_pipeline\graders.py), which return a normalized score in `[0.0, 1.0]`.
+Final task success is measured by deterministic graders in [graders.py](c:\Users\Lenovo\Desktop\Hackathon\openenv-subopt\real_estate_pipeline\graders.py), which return a normalized score strictly inside `(0.0, 1.0)`.
 
 ## Setup
 
@@ -309,11 +309,11 @@ python inference.py
 
 The scripted baseline policy targets deterministic fixture-optimal actions. Expected grader scores are approximately:
 
-- `residential_buyer_qualification`: `1.00`
-- `residential_missing_info_followup`: `1.00`
-- `commercial_lease_strategy`: `1.00`
+- `residential_buyer_qualification`: `0.9999`
+- `residential_missing_info_followup`: `0.9999`
+- `commercial_lease_strategy`: `0.9999`
 
-Average expected score: `1.00`
+Average expected score: `0.9999`
 
 ## Docker
 

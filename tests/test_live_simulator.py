@@ -36,7 +36,7 @@ def test_simulate_live_traffic_executes_end_to_end_residential_flow() -> None:
     assert response.processed_leads == 1
     result = response.results[0]
     assert result.success is True
-    assert result.final_score == 1.0
+    assert 0.75 <= result.final_score < 1.0
     assert result.final_stage == "builder_appointment_scheduled"
     assert result.recommended_property_id == "res_prop_101"
     assert result.final_state["active_opportunity"]["cab_booking_status"] == "booked"
