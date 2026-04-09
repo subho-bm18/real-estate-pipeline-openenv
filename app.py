@@ -1671,7 +1671,7 @@ def live_dashboard() -> HTMLResponse:
   <div class="shell">
     <div class="hero">
       <div class="eyebrow">Agentic CRM Demo</div>
-      <h1>Live Lead Processing Dashboard</h1>
+      <h1>Real Estate Lead Processing Dashboard</h1>
       <div class="sub">Streams multiple simulated inbound leads the way a brokerage inbox might receive them, then shows how the autonomous agent qualifies, prioritizes, matches inventory, and moves each deal forward.</div>
     </div>
     <div class="controls">

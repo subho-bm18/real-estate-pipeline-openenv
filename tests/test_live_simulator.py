@@ -74,7 +74,7 @@ def test_live_dashboard_contains_stream_controls() -> None:
     response = live_dashboard()
     body = response.body.decode("utf-8")
 
-    assert "Live Lead Processing Dashboard" in body
+    assert "Real Estate Lead Processing Dashboard" in body
     assert "Manual Lead Entry" in body
     assert "/simulate/live/stream" in body
     assert "Load Commercial Example" in body
