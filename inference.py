@@ -147,6 +147,8 @@ def run_task(env: RealEstatePipelineEnv, client: OpenAI, task_id: str) -> float:
             if result.done:
                 break
 
+        # The benchmark consumes the final grader_score as the task score.
+        # Per-step rewards are diagnostic only and are not the range-checked value.
         score = float(env.state().get("grader_score", 0.0))
         success = score >= 0.5
         return score

@@ -86,7 +86,9 @@ It penalizes:
 - unrealistic lease terms
 - unnecessary extra steps
 
-Final task success is measured by deterministic graders in [graders.py](c:\Users\Lenovo\Desktop\Hackathon\openenv-subopt\real_estate_pipeline\graders.py), which return a normalized score strictly inside `(0.0, 1.0)`.
+Benchmark validation checks the final task score, not the per-step reward.
+
+Final task success is measured by deterministic graders in [graders.py](c:\Users\Lenovo\Desktop\Hackathon\openenv-subopt\real_estate_pipeline\graders.py), which return a normalized score strictly inside `(0.0, 1.0)` so no task result is exactly `0.0` or `1.0`.
 
 ## Setup
 
