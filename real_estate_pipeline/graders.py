@@ -120,16 +120,16 @@ def _property_match_component(task: dict[str, Any], state: dict[str, Any]) -> fl
 def _contact_alignment_score(actual_contacted: bool | None, expected_contacted: bool | None) -> float:
     if expected_contacted is None:
         return 0.0
-    return 1.0 if bool(actual_contacted) == bool(expected_contacted) else 0.0
+    return _clip(1.0 if bool(actual_contacted) == bool(expected_contacted) else 0.0)
 
 
 def _boolean_alignment_score(actual: bool | None, expected: bool | None) -> float:
     if expected is None:
         return 0.0
-    return 1.0 if bool(actual) == bool(expected) else 0.0
+    return _clip(1.0 if bool(actual) == bool(expected) else 0.0)
 
 
 def _status_alignment_score(actual: str | None, expected: str | None) -> float:
     if expected is None:
         return 0.0
-    return 1.0 if actual == expected else 0.0
+    return _clip(1.0 if actual == expected else 0.0)

@@ -5,6 +5,19 @@ from typing import Any
 from .models import LeaseTerms, PropertyRecord
 
 
+MIN_STRICT_SCORE = 0.0001
+MAX_STRICT_SCORE = 0.9999
+
+
+def _clip(score: float) -> float:
+    rounded = round(score, 4)
+    if rounded <= 0.0:
+        return MIN_STRICT_SCORE
+    if rounded >= 1.0:
+        return MAX_STRICT_SCORE
+    return rounded
+
+
 def choose_category(opportunity: Any) -> str:
     return "commercial_tenant" if value_of(opportunity, "segment") == "commercial" else "residential_buyer"
 
@@ -28,7 +41,7 @@ def lead_readiness_score(opportunity: Any) -> float:
 
     missing_fields = value_of(opportunity, "missing_fields") or []
     score -= min(len(missing_fields) * 0.1, 0.3)
-    return max(0.0, min(1.0, round(score, 4)))
+    return _clip(max(0.0, min(1.0, round(score, 4))))
 
 
 def choose_priority(opportunity: Any) -> str:
@@ -44,7 +57,7 @@ def choose_priority(opportunity: Any) -> str:
 def property_fit_score(opportunity: Any, property_record: PropertyRecord | dict[str, Any]) -> float:
     segment = value_of(opportunity, "segment")
     if value_of(property_record, "segment") != segment:
-        return 0.0
+        return _clip(0.0)
 
     score = 0.0
     max_score = 10.0
@@ -78,7 +91,7 @@ def property_fit_score(opportunity: Any, property_record: PropertyRecord | dict[
     if business_type == "cafe" and details.get("fit_for") == "retail_food":
         score += 1.0
 
-    return max(0.0, min(1.0, round(score / max_score, 4)))
+    return _clip(max(0.0, min(1.0, round(score / max_score, 4))))
 
 
 def best_property_match(opportunity: Any, inventory: list[PropertyRecord]) -> PropertyRecord | None:
@@ -109,25 +122,25 @@ def recommended_lease_terms(opportunity: Any, inventory: list[PropertyRecord]) -
 
 def priority_alignment_score(actual_priority: str | None, expected_priority: str | None) -> float:
     if not actual_priority or not expected_priority:
-        return 0.0
+        return _clip(0.0)
     if actual_priority == expected_priority:
-        return 1.0
+        return _clip(1.0)
 
     ordered = ["low", "medium", "high"]
     if actual_priority not in ordered or expected_priority not in ordered:
-        return 0.0
+        return _clip(0.0)
 
     distance = abs(ordered.index(actual_priority) - ordered.index(expected_priority))
     if distance == 1:
-        return 0.5
-    return 0.0
+        return _clip(0.5)
+    return _clip(0.0)
 
 
 def stage_alignment_score(actual_stage: str | None, expected_stage: str | None) -> float:
     if not actual_stage or not expected_stage:
-        return 0.0
+        return _clip(0.0)
     if actual_stage == expected_stage:
-        return 1.0
+        return _clip(1.0)
 
     compatible_stages = {
         "visit_scheduled": {"new"},
@@ -138,13 +151,13 @@ def stage_alignment_score(actual_stage: str | None, expected_stage: str | None) 
         "negotiation": {"qualified", "proposal_shared"},
     }
     if actual_stage in compatible_stages.get(expected_stage, set()):
-        return 0.5
-    return 0.0
+        return _clip(0.5)
+    return _clip(0.0)
 
 
 def lease_terms_alignment_score(actual: dict[str, Any], expected: dict[str, Any]) -> float:
     if not actual or not expected:
-        return 0.0
+        return _clip(0.0)
 
     score = 0.0
     if actual.get("lease_years") == expected.get("lease_years"):
@@ -165,7 +178,7 @@ def lease_terms_alignment_score(actual: dict[str, Any], expected: dict[str, Any]
         elif variance <= 0.1:
             score += 0.1
 
-    return max(0.0, min(1.0, round(score, 4)))
+    return _clip(max(0.0, min(1.0, round(score, 4))))
 
 
 def value_of(source: Any, key: str) -> Any:

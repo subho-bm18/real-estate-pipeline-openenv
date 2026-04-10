@@ -6,6 +6,7 @@ from typing import Callable
 from openai import OpenAI
 
 from real_estate_pipeline import Action, RealEstatePipelineEnv
+from real_estate_pipeline.graders import MAX_STRICT_SCORE, MIN_STRICT_SCORE
 from real_estate_pipeline.models import LeaseTerms, Observation
 
 
