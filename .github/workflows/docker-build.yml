@@ -1,0 +1,152 @@
+name: Build and Test Docker Image
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'requirements.txt'
+      - 'Dockerfile'
+      - '*.py'
+      - 'server/**'
+      - 'real_estate_pipeline/**'
+      - '.github/workflows/docker-build.yml'
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Full history for git info
+      
+      - name: Get build metadata
+        id: meta
+        run: |
+          GIT_HASH=$(git rev-parse --short HEAD)
+          BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          VERSION=$(grep 'version' pyproject.toml | head -1 | cut -d'"' -f2)
+          GIT_BRANCH=${GITHUB_REF#refs/heads/}
+          
+          echo "git_hash=$GIT_HASH" >> $GITHUB_OUTPUT
+          echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "git_branch=$GIT_BRANCH" >> $GITHUB_OUTPUT
+          
+          echo "📊 Build Info:"
+          echo "  Hash: $GIT_HASH"
+          echo "  Date: $BUILD_DATE"
+          echo "  Version: $VERSION"
+          echo "  Branch: $GIT_BRANCH"
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Determine cache invalidation
+        id: cache
+        run: |
+          # Check if requirements.txt changed (cache invalidation trigger)
+          if git diff HEAD~1 HEAD --quiet -- requirements.txt; then
+            echo "use_cache=true" >> $GITHUB_OUTPUT
+            echo "⚡ Using cache (requirements.txt unchanged)"
+          else
+            echo "use_cache=false" >> $GITHUB_OUTPUT
+            echo "🗑️  Invalidating cache (requirements.txt changed)"
+          fi
+      
+      - name: Build Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile
+          load: true  # Load into local Docker for testing
+          no-cache: ${{ steps.cache.outputs.use_cache == 'false' }}
+          build-args: |
+            BUILD_DATE=${{ steps.meta.outputs.build_date }}
+            VCS_REF=${{ steps.meta.outputs.git_hash }}
+            VERSION=${{ steps.meta.outputs.version }}
+          tags: |
+            real-estate-env:latest
+            real-estate-env:${{ steps.meta.outputs.git_hash }}
+            real-estate-env:v${{ steps.meta.outputs.version }}
+            ${{ secrets.DOCKER_REGISTRY }}/real-estate-env:latest
+            ${{ secrets.DOCKER_REGISTRY }}/real-estate-env:${{ steps.meta.outputs.git_hash }}
+      
+      - name: Run grader tests
+        run: |
+          echo "🧪 Testing graders..."
+          docker run --rm real-estate-env:latest python comprehensive_grader_test.py
+      
+      - name: Run sanity checks
+        run: |
+          echo "💨 Running sanity checks..."
+          docker run --rm real-estate-env:latest python -c "
+from server.graders import EasyGrader, MediumGrader, HardGrader
+from real_estate_pipeline.env import RealEstatePipelineEnv
+print('✓ All imports successful')
+print('✓ Graders available:', EasyGrader, MediumGrader, HardGrader)
+print('✓ Environment class available:', RealEstatePipelineEnv)
+          "
+      
+      - name: Display image info
+        run: |
+          echo "📊 Image Information:"
+          docker images real-estate-env | head -5
+          echo ""
+          echo "📦 Image size:"
+          docker images real-estate-env --format "{{.Size}}" | head -1
+      
+      - name: Login to Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: Push to Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          no-cache: ${{ steps.cache.outputs.use_cache == 'false' }}
+          build-args: |
+            BUILD_DATE=${{ steps.meta.outputs.build_date }}
+            VCS_REF=${{ steps.meta.outputs.git_hash }}
+            VERSION=${{ steps.meta.outputs.version }}
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/real-estate-env:latest
+            ${{ secrets.DOCKER_USERNAME }}/real-estate-env:${{ steps.meta.outputs.git_hash }}
+            ${{ secrets.DOCKER_USERNAME }}/real-estate-env:v${{ steps.meta.outputs.version }}
+      
+      - name: Post build summary
+        if: always()
+        run: |
+          echo "## Docker Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Git Hash**: ${{ steps.meta.outputs.git_hash }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ steps.meta.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ steps.meta.outputs.git_branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Date**: ${{ steps.meta.outputs.build_date }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Cache Status**: ${{ steps.cache.outputs.use_cache }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+  
+  cleanup:
+    runs-on: ubuntu-latest
+    if: always()
+    needs: build
+    
+    steps:
+      - name: Clean up old images
+        run: |
+          echo "🧹 Cleaning up old dangling images..."
+          docker image prune -af --filter "until=48h" 2>/dev/null || echo "No images to clean"
+          echo "✓ Cleanup complete"
