@@ -21,4 +21,4 @@ dependencies = [
 server = "server.app:main"
 
 [tool.setuptools]
-packages = ["real_estate_pipeline"]
+packages = ["real_estate_pipeline", "server"]
