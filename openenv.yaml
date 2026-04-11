@@ -1,17 +1,50 @@
+spec_version: 1
 name: real-estate-pipeline-openenv
 description: Mixed residential and commercial real-estate pipeline environment for lead qualification, follow-up, property matching, and lease strategy.
 version: 0.1.0
-entrypoint: app:app
+type: space
+runtime: fastapi
+app: server.app:app
+port: 7860
 python_package: real_estate_pipeline
 environment_class: real_estate_pipeline.env.RealEstatePipelineEnv
+observation_type: real_estate_pipeline.models.Observation
+action_type: real_estate_pipeline.models.Action
+reward_type: real_estate_pipeline.models.Reward
 models:
   observation: real_estate_pipeline.models.Observation
   action: real_estate_pipeline.models.Action
   reward: real_estate_pipeline.models.Reward
 tasks:
-  - residential_buyer_qualification
-  - residential_missing_info_followup
-  - commercial_lease_strategy
+  - id: residential_buyer_qualification
+    name: Residential Buyer Qualification
+    description: Qualify a high-intent 2BHK buyer in Whitefield and match the best-fit property.
+    difficulty: easy
+    max_steps: 8
+    grader:
+      module: server.graders
+      function: grade_easy
+  - id: residential_missing_info_followup
+    name: Residential Missing Information Follow-up
+    description: Ask for missing budget, timeline, and financing details before recommending a property.
+    difficulty: medium
+    max_steps: 8
+    grader:
+      module: server.graders
+      function: grade_medium
+  - id: commercial_lease_strategy
+    name: Commercial Lease Strategy
+    description: Recommend the right retail lease and credible terms for a commercial tenant in a high-footfall zone.
+    difficulty: hard
+    max_steps: 8
+    grader:
+      module: server.graders
+      function: grade_hard
+grader:
+  module: server.graders
+  function: grade_task
+agent:
+  baseline: inference.py
 metadata:
   domain: real_estate
   tags:
